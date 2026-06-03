@@ -1,0 +1,14 @@
+node_modules
+dist
+data
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+*.md
+.DS_Store
+*.db
+*.db-shm
+*.db-wal
+agent-transcripts

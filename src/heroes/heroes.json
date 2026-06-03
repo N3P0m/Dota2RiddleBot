@@ -1,0 +1,2162 @@
+[
+  {
+    "id": 1,
+    "name_en": "Anti-Mage",
+    "name_ru": "Антимаг",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "anti-mage",
+      "антимаг",
+      "antimage",
+      "am",
+      "ам"
+    ]
+  },
+  {
+    "id": 2,
+    "name_en": "Axe",
+    "name_ru": "Акс",
+    "roles": [
+      "Initiator",
+      "Durable",
+      "Disabler",
+      "Carry"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "axe",
+      "акс"
+    ]
+  },
+  {
+    "id": 3,
+    "name_en": "Bane",
+    "name_ru": "Бейн",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker",
+      "Durable"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "bane",
+      "бейн"
+    ]
+  },
+  {
+    "id": 4,
+    "name_en": "Bloodseeker",
+    "name_ru": "Кровопийца",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Nuker",
+      "Initiator"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "bloodseeker",
+      "кровопийца",
+      "бладсикер",
+      "блодсикер",
+      "блудсикер",
+      "bs",
+      "бс",
+      "кровопий"
+    ]
+  },
+  {
+    "id": 5,
+    "name_en": "Crystal Maiden",
+    "name_ru": "Кристалка",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "crystal maiden",
+      "кристалка",
+      "crystalmaiden",
+      "cm",
+      "кристал",
+      "кристалмейден"
+    ]
+  },
+  {
+    "id": 6,
+    "name_en": "Drow Ranger",
+    "name_ru": "Дровка",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Pusher"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "drow ranger",
+      "дровка",
+      "drowranger"
+    ]
+  },
+  {
+    "id": 7,
+    "name_en": "Earthshaker",
+    "name_ru": "Шейкер",
+    "roles": [
+      "Support",
+      "Initiator",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "earthshaker",
+      "шейкер"
+    ]
+  },
+  {
+    "id": 8,
+    "name_en": "Juggernaut",
+    "name_ru": "Джаггер",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "juggernaut",
+      "джаггер"
+    ]
+  },
+  {
+    "id": 9,
+    "name_en": "Mirana",
+    "name_ru": "Мирана",
+    "roles": [
+      "Carry",
+      "Support",
+      "Escape",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "mirana",
+      "мирана"
+    ]
+  },
+  {
+    "id": 10,
+    "name_en": "Morphling",
+    "name_ru": "Морфлинг",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Durable",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "morphling",
+      "морфлинг"
+    ]
+  },
+  {
+    "id": 11,
+    "name_en": "Shadow Fiend",
+    "name_ru": "Шадоу Фиенд",
+    "roles": [
+      "Carry",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "shadow fiend",
+      "шадоу фиенд",
+      "shadowfiend",
+      "шадоуфиенд",
+      "sf",
+      "невермор"
+    ]
+  },
+  {
+    "id": 12,
+    "name_en": "Phantom Lancer",
+    "name_ru": "Пл",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Pusher",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "phantom lancer",
+      "пл",
+      "phantomlancer",
+      "pl"
+    ]
+  },
+  {
+    "id": 13,
+    "name_en": "Puck",
+    "name_ru": "Пак",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "puck",
+      "пак"
+    ]
+  },
+  {
+    "id": 14,
+    "name_en": "Pudge",
+    "name_ru": "Пудж",
+    "roles": [
+      "Disabler",
+      "Initiator",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "pudge",
+      "пудж",
+      "мясник"
+    ]
+  },
+  {
+    "id": 15,
+    "name_en": "Razor",
+    "name_ru": "Рейзор",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Nuker",
+      "Pusher"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "razor",
+      "рейзор"
+    ]
+  },
+  {
+    "id": 16,
+    "name_en": "Sand King",
+    "name_ru": "Санд Кинг",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Support",
+      "Nuker",
+      "Escape"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "sand king",
+      "санд кинг",
+      "sandking",
+      "сандкинг",
+      "ск"
+    ]
+  },
+  {
+    "id": 17,
+    "name_en": "Storm Spirit",
+    "name_ru": "Шторм",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Nuker",
+      "Initiator",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "storm spirit",
+      "шторм",
+      "stormspirit",
+      "storm"
+    ]
+  },
+  {
+    "id": 18,
+    "name_en": "Sven",
+    "name_ru": "Свен",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Initiator",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "sven",
+      "свен"
+    ]
+  },
+  {
+    "id": 19,
+    "name_en": "Tiny",
+    "name_ru": "Тайни",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Pusher",
+      "Initiator",
+      "Durable",
+      "Disabler"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "tiny",
+      "тайни"
+    ]
+  },
+  {
+    "id": 20,
+    "name_en": "Vengeful Spirit",
+    "name_ru": "Венга",
+    "roles": [
+      "Support",
+      "Initiator",
+      "Disabler",
+      "Nuker",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "vengeful spirit",
+      "венга",
+      "vengefulspirit"
+    ]
+  },
+  {
+    "id": 21,
+    "name_en": "Windranger",
+    "name_ru": "Виндранер",
+    "roles": [
+      "Carry",
+      "Support",
+      "Disabler",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "windranger",
+      "виндранер",
+      "винда",
+      "wr"
+    ]
+  },
+  {
+    "id": 22,
+    "name_en": "Zeus",
+    "name_ru": "Зевс",
+    "roles": [
+      "Nuker",
+      "Carry"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "zeus",
+      "зевс",
+      "zuus"
+    ]
+  },
+  {
+    "id": 23,
+    "name_en": "Kunkka",
+    "name_ru": "Кункка",
+    "roles": [
+      "Carry",
+      "Support",
+      "Disabler",
+      "Initiator",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "kunkka",
+      "кункка"
+    ]
+  },
+  {
+    "id": 25,
+    "name_en": "Lina",
+    "name_ru": "Лина",
+    "roles": [
+      "Support",
+      "Carry",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "lina",
+      "лина"
+    ]
+  },
+  {
+    "id": 26,
+    "name_en": "Lion",
+    "name_ru": "Лайон",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker",
+      "Initiator"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "lion",
+      "лайон"
+    ]
+  },
+  {
+    "id": 27,
+    "name_en": "Shadow Shaman",
+    "name_ru": "Шаман",
+    "roles": [
+      "Support",
+      "Pusher",
+      "Disabler",
+      "Nuker",
+      "Initiator"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "shadow shaman",
+      "шаман",
+      "shadowshaman"
+    ]
+  },
+  {
+    "id": 28,
+    "name_en": "Slardar",
+    "name_ru": "Слардар",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Initiator",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "slardar",
+      "слардар"
+    ]
+  },
+  {
+    "id": 29,
+    "name_en": "Tidehunter",
+    "name_ru": "Тайдхунтер",
+    "roles": [
+      "Initiator",
+      "Durable",
+      "Disabler",
+      "Nuker",
+      "Carry"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "tidehunter",
+      "тайдхунтер"
+    ]
+  },
+  {
+    "id": 30,
+    "name_en": "Witch Doctor",
+    "name_ru": "Вд",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "witch doctor",
+      "вд",
+      "witchdoctor",
+      "wd",
+      "доктор"
+    ]
+  },
+  {
+    "id": 31,
+    "name_en": "Lich",
+    "name_ru": "Лич",
+    "roles": [
+      "Support",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "lich",
+      "лич"
+    ]
+  },
+  {
+    "id": 32,
+    "name_en": "Riki",
+    "name_ru": "Рики",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "riki",
+      "рики"
+    ]
+  },
+  {
+    "id": 33,
+    "name_en": "Enigma",
+    "name_ru": "Энигма",
+    "roles": [
+      "Disabler",
+      "Initiator",
+      "Pusher"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "enigma",
+      "энигма"
+    ]
+  },
+  {
+    "id": 34,
+    "name_en": "Tinker",
+    "name_ru": "Тинкер",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Pusher"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "tinker",
+      "тинкер"
+    ]
+  },
+  {
+    "id": 35,
+    "name_en": "Sniper",
+    "name_ru": "Снайпер",
+    "roles": [
+      "Carry",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "sniper",
+      "снайпер"
+    ]
+  },
+  {
+    "id": 36,
+    "name_en": "Necrophos",
+    "name_ru": "Некрофос",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Durable",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "necrophos",
+      "некрофос"
+    ]
+  },
+  {
+    "id": 37,
+    "name_en": "Warlock",
+    "name_ru": "Варлок",
+    "roles": [
+      "Support",
+      "Initiator",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "warlock",
+      "варлок"
+    ]
+  },
+  {
+    "id": 38,
+    "name_en": "Beastmaster",
+    "name_ru": "Бистмастер",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "beastmaster",
+      "бистмастер"
+    ]
+  },
+  {
+    "id": 39,
+    "name_en": "Queen of Pain",
+    "name_ru": "Квопа",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Escape"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "queen of pain",
+      "квопа",
+      "queenofpain",
+      "qop",
+      "квоп"
+    ]
+  },
+  {
+    "id": 40,
+    "name_en": "Venomancer",
+    "name_ru": "Веномансер",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Initiator",
+      "Pusher",
+      "Disabler"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "venomancer",
+      "веномансер"
+    ]
+  },
+  {
+    "id": 41,
+    "name_en": "Faceless Void",
+    "name_ru": "Войд",
+    "roles": [
+      "Carry",
+      "Initiator",
+      "Disabler",
+      "Escape",
+      "Durable"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "faceless void",
+      "войд",
+      "facelessvoid",
+      "void"
+    ]
+  },
+  {
+    "id": 42,
+    "name_en": "Wraith King",
+    "name_ru": "Вк",
+    "roles": [
+      "Carry",
+      "Support",
+      "Durable",
+      "Disabler",
+      "Initiator"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "wraith king",
+      "вк",
+      "wraithking",
+      "скелет",
+      "skeleton king"
+    ]
+  },
+  {
+    "id": 43,
+    "name_en": "Death Prophet",
+    "name_ru": "Дп",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "death prophet",
+      "дп",
+      "deathprophet",
+      "dp"
+    ]
+  },
+  {
+    "id": 44,
+    "name_en": "Phantom Assassin",
+    "name_ru": "Па",
+    "roles": [
+      "Carry",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "phantom assassin",
+      "па",
+      "phantomassassin",
+      "pa"
+    ]
+  },
+  {
+    "id": 45,
+    "name_en": "Pugna",
+    "name_ru": "Пугна",
+    "roles": [
+      "Nuker",
+      "Pusher"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "pugna",
+      "пугна"
+    ]
+  },
+  {
+    "id": 46,
+    "name_en": "Templar Assassin",
+    "name_ru": "Та",
+    "roles": [
+      "Carry",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "templar assassin",
+      "та",
+      "templarassassin",
+      "ta"
+    ]
+  },
+  {
+    "id": 47,
+    "name_en": "Viper",
+    "name_ru": "Вайпер",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Initiator",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "viper",
+      "вайпер"
+    ]
+  },
+  {
+    "id": 48,
+    "name_en": "Luna",
+    "name_ru": "Луна",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Pusher"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "luna",
+      "луна"
+    ]
+  },
+  {
+    "id": 49,
+    "name_en": "Dragon Knight",
+    "name_ru": "Дк",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Durable",
+      "Disabler",
+      "Initiator",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "dragon knight",
+      "дк",
+      "dragonknight"
+    ]
+  },
+  {
+    "id": 50,
+    "name_en": "Dazzle",
+    "name_ru": "Дазл",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "dazzle",
+      "дазл"
+    ]
+  },
+  {
+    "id": 51,
+    "name_en": "Clockwerk",
+    "name_ru": "Клокерк",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "clockwerk",
+      "клокерк",
+      "клок",
+      "clock"
+    ]
+  },
+  {
+    "id": 52,
+    "name_en": "Leshrac",
+    "name_ru": "Leshrac",
+    "roles": [
+      "Carry",
+      "Support",
+      "Nuker",
+      "Pusher",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "leshrac"
+    ]
+  },
+  {
+    "id": 53,
+    "name_en": "Nature's Prophet",
+    "name_ru": "Фурик",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "nature's prophet",
+      "фурик",
+      "naturesprophet",
+      "фур",
+      "np",
+      "пророк"
+    ]
+  },
+  {
+    "id": 54,
+    "name_en": "Lifestealer",
+    "name_ru": "Лайфстилер",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "lifestealer",
+      "лайфстилер",
+      "найкс",
+      "naix",
+      "лайф"
+    ]
+  },
+  {
+    "id": 55,
+    "name_en": "Dark Seer",
+    "name_ru": "Дарк Сир",
+    "roles": [
+      "Initiator",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "dark seer",
+      "дарк сир",
+      "darkseer",
+      "дарксир",
+      "сир",
+      "seer"
+    ]
+  },
+  {
+    "id": 56,
+    "name_en": "Clinkz",
+    "name_ru": "Клинкз",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Pusher"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "clinkz",
+      "клинкз"
+    ]
+  },
+  {
+    "id": 57,
+    "name_en": "Omniknight",
+    "name_ru": "Омник",
+    "roles": [
+      "Support",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "omniknight",
+      "омник",
+      "омни",
+      "omni"
+    ]
+  },
+  {
+    "id": 58,
+    "name_en": "Enchantress",
+    "name_ru": "Энча",
+    "roles": [
+      "Support",
+      "Pusher",
+      "Durable",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "enchantress",
+      "энча",
+      "encha"
+    ]
+  },
+  {
+    "id": 59,
+    "name_en": "Huskar",
+    "name_ru": "Хускар",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Initiator"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "huskar",
+      "хускар"
+    ]
+  },
+  {
+    "id": 60,
+    "name_en": "Night Stalker",
+    "name_ru": "Нс",
+    "roles": [
+      "Carry",
+      "Initiator",
+      "Durable",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "night stalker",
+      "нс",
+      "nightstalker",
+      "ns",
+      "сталкер"
+    ]
+  },
+  {
+    "id": 61,
+    "name_en": "Broodmother",
+    "name_ru": "Бруда",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "broodmother",
+      "бруда",
+      "brood"
+    ]
+  },
+  {
+    "id": 62,
+    "name_en": "Bounty Hunter",
+    "name_ru": "Бх",
+    "roles": [
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "bounty hunter",
+      "бх",
+      "bountyhunter",
+      "bh",
+      "гача"
+    ]
+  },
+  {
+    "id": 63,
+    "name_en": "Weaver",
+    "name_ru": "Вивер",
+    "roles": [
+      "Carry",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "weaver",
+      "вивер"
+    ]
+  },
+  {
+    "id": 64,
+    "name_en": "Jakiro",
+    "name_ru": "Жакиро",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Pusher",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "jakiro",
+      "жакиро"
+    ]
+  },
+  {
+    "id": 65,
+    "name_en": "Batrider",
+    "name_ru": "Батрайдер",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "batrider",
+      "батрайдер"
+    ]
+  },
+  {
+    "id": 66,
+    "name_en": "Chen",
+    "name_ru": "Чен",
+    "roles": [
+      "Support",
+      "Pusher"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "chen",
+      "чен"
+    ]
+  },
+  {
+    "id": 67,
+    "name_en": "Spectre",
+    "name_ru": "Спектра",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "spectre",
+      "спектра",
+      "spec"
+    ]
+  },
+  {
+    "id": 68,
+    "name_en": "Ancient Apparition",
+    "name_ru": "Аа",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "ancient apparition",
+      "аа",
+      "ancientapparition",
+      "aa",
+      "калдун"
+    ]
+  },
+  {
+    "id": 69,
+    "name_en": "Doom",
+    "name_ru": "Дум",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Initiator",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "doom",
+      "дум"
+    ]
+  },
+  {
+    "id": 70,
+    "name_en": "Ursa",
+    "name_ru": "Ursa",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "ursa"
+    ]
+  },
+  {
+    "id": 71,
+    "name_en": "Spirit Breaker",
+    "name_ru": "Бара",
+    "roles": [
+      "Carry",
+      "Initiator",
+      "Disabler",
+      "Durable",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "spirit breaker",
+      "бара",
+      "spiritbreaker",
+      "баратрум",
+      "charger"
+    ]
+  },
+  {
+    "id": 72,
+    "name_en": "Gyrocopter",
+    "name_ru": "Гиро",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "gyrocopter",
+      "гиро",
+      "gyro"
+    ]
+  },
+  {
+    "id": 73,
+    "name_en": "Alchemist",
+    "name_ru": "Алхимик",
+    "roles": [
+      "Carry",
+      "Support",
+      "Durable",
+      "Disabler",
+      "Initiator",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "alchemist",
+      "алхимик"
+    ]
+  },
+  {
+    "id": 74,
+    "name_en": "Invoker",
+    "name_ru": "Инвокер",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Disabler",
+      "Escape",
+      "Pusher"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "invoker",
+      "инвокер",
+      "инв",
+      "инвок"
+    ]
+  },
+  {
+    "id": 75,
+    "name_en": "Silencer",
+    "name_ru": "Сайленсер",
+    "roles": [
+      "Carry",
+      "Support",
+      "Disabler",
+      "Initiator",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "silencer",
+      "сайленсер"
+    ]
+  },
+  {
+    "id": 76,
+    "name_en": "Outworld Destroyer",
+    "name_ru": "Од",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "outworld destroyer",
+      "од",
+      "outworlddestroyer",
+      "od",
+      "outworld"
+    ]
+  },
+  {
+    "id": 77,
+    "name_en": "Lycan",
+    "name_ru": "Lycan",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Durable",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "lycan"
+    ]
+  },
+  {
+    "id": 78,
+    "name_en": "Brewmaster",
+    "name_ru": "Панда",
+    "roles": [
+      "Carry",
+      "Initiator",
+      "Durable",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "brewmaster",
+      "панда",
+      "panda"
+    ]
+  },
+  {
+    "id": 79,
+    "name_en": "Shadow Demon",
+    "name_ru": "Сд",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Initiator",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "shadow demon",
+      "сд",
+      "shadowdemon",
+      "sd"
+    ]
+  },
+  {
+    "id": 80,
+    "name_en": "Lone Druid",
+    "name_ru": "Лонг Друид",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Durable"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "lone druid",
+      "лонг друид",
+      "lonedruid",
+      "лонгдруид",
+      "друид",
+      "ld",
+      "медведь"
+    ]
+  },
+  {
+    "id": 81,
+    "name_en": "Chaos Knight",
+    "name_ru": "Чк",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Durable",
+      "Pusher",
+      "Initiator"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "chaos knight",
+      "чк",
+      "chaosknight",
+      "ck",
+      "хаос"
+    ]
+  },
+  {
+    "id": 82,
+    "name_en": "Meepo",
+    "name_ru": "Мипо",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Nuker",
+      "Disabler",
+      "Initiator",
+      "Pusher"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "meepo",
+      "мипо",
+      "мипы"
+    ]
+  },
+  {
+    "id": 83,
+    "name_en": "Treant Protector",
+    "name_ru": "Треант",
+    "roles": [
+      "Support",
+      "Initiator",
+      "Durable",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "treant protector",
+      "треант",
+      "treantprotector"
+    ]
+  },
+  {
+    "id": 84,
+    "name_en": "Ogre Magi",
+    "name_ru": "Огр",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler",
+      "Durable",
+      "Initiator"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "ogre magi",
+      "огр",
+      "ogremagi"
+    ]
+  },
+  {
+    "id": 85,
+    "name_en": "Undying",
+    "name_ru": "Айо",
+    "roles": [
+      "Support",
+      "Durable",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "undying",
+      "айо"
+    ]
+  },
+  {
+    "id": 86,
+    "name_en": "Rubick",
+    "name_ru": "Рубик",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "rubick",
+      "рубик",
+      "руб"
+    ]
+  },
+  {
+    "id": 87,
+    "name_en": "Disruptor",
+    "name_ru": "Дизраптор",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker",
+      "Initiator"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "disruptor",
+      "дизраптор",
+      "диз"
+    ]
+  },
+  {
+    "id": 88,
+    "name_en": "Nyx Assassin",
+    "name_ru": "Никс",
+    "roles": [
+      "Disabler",
+      "Nuker",
+      "Initiator",
+      "Escape"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "nyx assassin",
+      "никс",
+      "nyxassassin",
+      "nyx"
+    ]
+  },
+  {
+    "id": 89,
+    "name_en": "Naga Siren",
+    "name_ru": "Нага",
+    "roles": [
+      "Carry",
+      "Support",
+      "Pusher",
+      "Disabler",
+      "Initiator",
+      "Escape"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "naga siren",
+      "нага",
+      "nagasiren",
+      "naga"
+    ]
+  },
+  {
+    "id": 90,
+    "name_en": "Keeper of the Light",
+    "name_ru": "Котл",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "keeper of the light",
+      "котл",
+      "keeperofthelight",
+      "ezalor",
+      "котёл"
+    ]
+  },
+  {
+    "id": 91,
+    "name_en": "Io",
+    "name_ru": "Висп",
+    "roles": [
+      "Support",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "io",
+      "висп",
+      "wisp"
+    ]
+  },
+  {
+    "id": 92,
+    "name_en": "Visage",
+    "name_ru": "Висаж",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Durable",
+      "Disabler",
+      "Pusher"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "visage",
+      "висаж"
+    ]
+  },
+  {
+    "id": 93,
+    "name_en": "Slark",
+    "name_ru": "Сларк",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "slark",
+      "сларк",
+      "рыба"
+    ]
+  },
+  {
+    "id": 94,
+    "name_en": "Medusa",
+    "name_ru": "Медуза",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Durable"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "medusa",
+      "медуза",
+      "горгона"
+    ]
+  },
+  {
+    "id": 95,
+    "name_en": "Troll Warlord",
+    "name_ru": "Тролль",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Disabler",
+      "Durable"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "troll warlord",
+      "тролль",
+      "trollwarlord"
+    ]
+  },
+  {
+    "id": 96,
+    "name_en": "Centaur Warrunner",
+    "name_ru": "Кентавр",
+    "roles": [
+      "Durable",
+      "Initiator",
+      "Disabler",
+      "Nuker",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "centaur warrunner",
+      "кентавр",
+      "centaurwarrunner",
+      "кент",
+      "cent"
+    ]
+  },
+  {
+    "id": 97,
+    "name_en": "Magnus",
+    "name_ru": "Магнус",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Nuker",
+      "Escape"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "magnus",
+      "магнус",
+      "маг"
+    ]
+  },
+  {
+    "id": 98,
+    "name_en": "Timbersaw",
+    "name_ru": "Тимбер",
+    "roles": [
+      "Nuker",
+      "Durable",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "timbersaw",
+      "тимбер",
+      "тимбр"
+    ]
+  },
+  {
+    "id": 99,
+    "name_en": "Bristleback",
+    "name_ru": "Бристл",
+    "roles": [
+      "Carry",
+      "Durable",
+      "Initiator",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "bristleback",
+      "бристл"
+    ]
+  },
+  {
+    "id": 100,
+    "name_en": "Tusk",
+    "name_ru": "Туск",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "tusk",
+      "туск"
+    ]
+  },
+  {
+    "id": 101,
+    "name_en": "Skywrath Mage",
+    "name_ru": "Скай",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "skywrath mage",
+      "скай",
+      "skywrathmage",
+      "sky"
+    ]
+  },
+  {
+    "id": 102,
+    "name_en": "Abaddon",
+    "name_ru": "Абаддон",
+    "roles": [
+      "Support",
+      "Carry",
+      "Durable"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "abaddon",
+      "абаддон"
+    ]
+  },
+  {
+    "id": 103,
+    "name_en": "Elder Titan",
+    "name_ru": "Титан",
+    "roles": [
+      "Initiator",
+      "Disabler",
+      "Nuker",
+      "Durable"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "elder titan",
+      "титан",
+      "eldertitan",
+      "et"
+    ]
+  },
+  {
+    "id": 104,
+    "name_en": "Legion Commander",
+    "name_ru": "Легион",
+    "roles": [
+      "Carry",
+      "Disabler",
+      "Initiator",
+      "Durable",
+      "Nuker"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "legion commander",
+      "легион",
+      "legioncommander",
+      "lc"
+    ]
+  },
+  {
+    "id": 105,
+    "name_en": "Techies",
+    "name_ru": "Techies",
+    "roles": [
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "techies"
+    ]
+  },
+  {
+    "id": 106,
+    "name_en": "Ember Spirit",
+    "name_ru": "Эмбер",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Nuker",
+      "Disabler",
+      "Initiator"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "ember spirit",
+      "эмбер",
+      "emberspirit",
+      "ember"
+    ]
+  },
+  {
+    "id": 107,
+    "name_en": "Earth Spirit",
+    "name_ru": "Эрт Спирит",
+    "roles": [
+      "Nuker",
+      "Escape",
+      "Disabler",
+      "Initiator",
+      "Durable"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "earth spirit",
+      "эрт спирит",
+      "earthspirit",
+      "эртспирит",
+      "эрт"
+    ]
+  },
+  {
+    "id": 108,
+    "name_en": "Underlord",
+    "name_ru": "Андерлорд",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler",
+      "Durable",
+      "Escape"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "underlord",
+      "андерлорд",
+      "питлорд",
+      "pitlord"
+    ]
+  },
+  {
+    "id": 109,
+    "name_en": "Terrorblade",
+    "name_ru": "Тб",
+    "roles": [
+      "Carry",
+      "Pusher",
+      "Nuker"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "terrorblade",
+      "тб",
+      "tb"
+    ]
+  },
+  {
+    "id": 110,
+    "name_en": "Phoenix",
+    "name_ru": "Феникс",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Initiator",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "phoenix",
+      "феникс"
+    ]
+  },
+  {
+    "id": 111,
+    "name_en": "Oracle",
+    "name_ru": "Оракул",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "oracle",
+      "оракул"
+    ]
+  },
+  {
+    "id": 112,
+    "name_en": "Winter Wyvern",
+    "name_ru": "Виверна",
+    "roles": [
+      "Support",
+      "Disabler",
+      "Nuker"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "winter wyvern",
+      "виверна",
+      "winterwyvern",
+      "ww"
+    ]
+  },
+  {
+    "id": 113,
+    "name_en": "Arc Warden",
+    "name_ru": "Арк",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Nuker"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "arc warden",
+      "арк",
+      "arcwarden"
+    ]
+  },
+  {
+    "id": 114,
+    "name_en": "Monkey King",
+    "name_ru": "Мк",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Disabler",
+      "Initiator"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "monkey king",
+      "мк",
+      "monkeyking",
+      "mk",
+      "обезьяна"
+    ]
+  },
+  {
+    "id": 119,
+    "name_en": "Dark Willow",
+    "name_ru": "Виллоу",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "dark willow",
+      "виллоу",
+      "darkwillow",
+      "willow"
+    ]
+  },
+  {
+    "id": 120,
+    "name_en": "Pangolier",
+    "name_ru": "Панго",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Disabler",
+      "Durable",
+      "Escape",
+      "Initiator"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "pangolier",
+      "панго",
+      "pango"
+    ]
+  },
+  {
+    "id": 121,
+    "name_en": "Grimstroke",
+    "name_ru": "Грим",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "grimstroke",
+      "грим",
+      "grim"
+    ]
+  },
+  {
+    "id": 123,
+    "name_en": "Hoodwink",
+    "name_ru": "Худвинк",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "hoodwink",
+      "худвинк",
+      "белка"
+    ]
+  },
+  {
+    "id": 126,
+    "name_en": "Void Spirit",
+    "name_ru": "Void Spirit",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "void spirit",
+      "voidspirit"
+    ]
+  },
+  {
+    "id": 128,
+    "name_en": "Snapfire",
+    "name_ru": "Снап",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "snapfire",
+      "снап",
+      "бабка"
+    ]
+  },
+  {
+    "id": 129,
+    "name_en": "Mars",
+    "name_ru": "Марс",
+    "roles": [
+      "Carry",
+      "Initiator",
+      "Disabler",
+      "Durable"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "mars",
+      "марс"
+    ]
+  },
+  {
+    "id": 131,
+    "name_en": "Ringmaster",
+    "name_ru": "Рингмастер",
+    "roles": [
+      "Support",
+      "Nuker",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "ringmaster",
+      "рингмастер",
+      "ринг",
+      "циркач"
+    ]
+  },
+  {
+    "id": 135,
+    "name_en": "Dawnbreaker",
+    "name_ru": "Дб",
+    "roles": [
+      "Carry",
+      "Durable"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "dawnbreaker",
+      "дб",
+      "db",
+      "заря"
+    ]
+  },
+  {
+    "id": 136,
+    "name_en": "Marci",
+    "name_ru": "Марси",
+    "roles": [
+      "Support",
+      "Carry",
+      "Initiator",
+      "Disabler",
+      "Escape"
+    ],
+    "primary_attr": "all",
+    "aliases": [
+      "marci",
+      "марси"
+    ]
+  },
+  {
+    "id": 137,
+    "name_en": "Primal Beast",
+    "name_ru": "Зверь",
+    "roles": [
+      "Initiator",
+      "Durable",
+      "Disabler"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "primal beast",
+      "зверь",
+      "primalbeast",
+      "beast"
+    ]
+  },
+  {
+    "id": 138,
+    "name_en": "Muerta",
+    "name_ru": "Муэрта",
+    "roles": [
+      "Carry",
+      "Nuker",
+      "Disabler"
+    ],
+    "primary_attr": "int",
+    "aliases": [
+      "muerta",
+      "муэрта"
+    ]
+  },
+  {
+    "id": 145,
+    "name_en": "Kez",
+    "name_ru": "Кез",
+    "roles": [
+      "Carry",
+      "Escape",
+      "Disabler"
+    ],
+    "primary_attr": "agi",
+    "aliases": [
+      "kez",
+      "кез"
+    ]
+  },
+  {
+    "id": 155,
+    "name_en": "Largo",
+    "name_ru": "Ларго",
+    "roles": [
+      "Durable",
+      "Disabler",
+      "Support"
+    ],
+    "primary_attr": "str",
+    "aliases": [
+      "largo",
+      "ларго"
+    ]
+  }
+]

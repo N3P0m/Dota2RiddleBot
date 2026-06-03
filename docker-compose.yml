@@ -1,0 +1,14 @@
+services:
+  bot:
+    build: .
+    container_name: dota2heroes-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /app/data/bot.db
+    volumes:
+      - bot-data:/app/data
+
+volumes:
+  bot-data:
