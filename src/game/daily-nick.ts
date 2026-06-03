@@ -9,6 +9,10 @@ export type DailyNickResult =
       cached: boolean;
       date: string;
       previousNicks: string[];
+      /** Сколько перекатов осталось без запроса к нейросети */
+      stackRemaining: number;
+      /** true — взяли из очереди; false — новый запрос к Gemini */
+      fromStack: boolean;
     }
   | { ok: false; reason: "generate_failed" };
 
@@ -17,6 +21,7 @@ export class DailyNickService {
     private repo: Repository,
     private gemini: GeminiClient,
     private timeZone: string,
+    private stackSize: number,
   ) {}
 
   getTodayNick(userId: string): string | undefined {
@@ -25,6 +30,10 @@ export class DailyNickService {
 
   getPreviousNicks(userId: string): string[] {
     return this.repo.getPreviousNicks(userId);
+  }
+
+  getStackRemaining(userId: string): number {
+    return this.repo.getNickQueue(userId, todayKey(this.timeZone)).length;
   }
 
   async getOrCreate(
@@ -44,23 +53,62 @@ export class DailyNickService {
           cached: true,
           date,
           previousNicks: this.repo.getPreviousNicks(userId),
+          stackRemaining: this.repo.getNickQueue(userId, date).length,
+          fromStack: false,
         };
       }
     }
 
-    const seed = `${userId}-${date}-${Date.now()}`;
-    const nickname = await this.gemini.generateDailyNick(date, seed);
-    if (!nickname) {
+    const taken = await this.takeNextNick(userId, date);
+    if (!taken) {
       return { ok: false, reason: "generate_failed" };
     }
 
-    this.repo.saveDailyNick(userId, date, nickname, displayName, username);
+    this.repo.saveDailyNick(userId, date, taken.nickname, displayName, username);
     return {
       ok: true,
-      nickname,
+      nickname: taken.nickname,
       cached: false,
       date,
       previousNicks: this.repo.getPreviousNicks(userId),
+      stackRemaining: taken.stackRemaining,
+      fromStack: taken.fromStack,
     };
+  }
+
+  private async takeNextNick(
+    userId: string,
+    nickDate: string,
+  ): Promise<{
+    nickname: string;
+    stackRemaining: number;
+    fromStack: boolean;
+  } | null> {
+    let queue = this.repo.getNickQueue(userId, nickDate);
+    let fromStack = queue.length > 0;
+
+    if (queue.length === 0) {
+      const exclude = new Set([
+        ...this.repo.getPreviousNicks(userId).map((n) => n.toLowerCase()),
+        ...(this.repo.getDailyNick(userId, nickDate)?.toLowerCase()
+          ? [this.repo.getDailyNick(userId, nickDate)!.toLowerCase()]
+          : []),
+      ]);
+      const batch = await this.gemini.generateDailyNickBatch(
+        nickDate,
+        `${userId}-${nickDate}-${Date.now()}`,
+        this.stackSize,
+        [...exclude],
+      );
+      if (batch.length === 0) return null;
+      queue = batch;
+      fromStack = false;
+    }
+
+    const [nickname, ...rest] = queue;
+    if (!nickname) return null;
+
+    this.repo.setNickQueue(userId, nickDate, rest);
+    return { nickname, stackRemaining: rest.length, fromStack };
   }
 }

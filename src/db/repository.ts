@@ -79,6 +79,13 @@ export class Repository {
         created_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_nick_history_user ON nick_history(user_id, created_at DESC);
+      CREATE TABLE IF NOT EXISTS nick_queues (
+        user_id TEXT NOT NULL,
+        nick_date TEXT NOT NULL,
+        queue TEXT NOT NULL DEFAULT '[]',
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, nick_date)
+      );
       CREATE TABLE IF NOT EXISTS chat_riddle_history (
         chat_id TEXT PRIMARY KEY,
         hero_ids TEXT NOT NULL DEFAULT '[]',
@@ -248,6 +255,29 @@ export class Repository {
     return row?.nickname;
   }
 
+  getNickQueue(userId: string, nickDate: string): string[] {
+    const row = this.db
+      .prepare(
+        `SELECT queue FROM nick_queues WHERE user_id = ? AND nick_date = ?`,
+      )
+      .get(userId, nickDate) as { queue: string } | undefined;
+    if (!row) return [];
+    return this.parseStringList(row.queue);
+  }
+
+  setNickQueue(userId: string, nickDate: string, queue: string[]): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO nick_queues (user_id, nick_date, queue, updated_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id, nick_date) DO UPDATE SET
+           queue = excluded.queue,
+           updated_at = excluded.updated_at`,
+      )
+      .run(userId, nickDate, JSON.stringify(queue), now);
+  }
+
   getPreviousNicks(userId: string): string[] {
     const row = this.db
       .prepare(`SELECT previous_nicks FROM nick_profiles WHERE user_id = ?`)
@@ -346,6 +376,10 @@ export class Repository {
   }
 
   private parsePreviousList(raw: string | undefined): string[] {
+    return this.parseStringList(raw);
+  }
+
+  private parseStringList(raw: string | undefined): string[] {
     if (!raw) return [];
     try {
       const list = JSON.parse(raw) as unknown;

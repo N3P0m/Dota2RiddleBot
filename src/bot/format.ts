@@ -82,6 +82,7 @@ export function formatDailyNick(
   dateLabel: string,
   cached: boolean,
   previousNicks: string[] = [],
+  stackRemaining = 0,
 ): string {
   const status = cached
     ? "уже был сегодня"
@@ -91,6 +92,17 @@ export function formatDailyNick(
     `📛 <b>Твой дотаник на ${escapeHtml(dateLabel)}</b>\n\n` +
     `<b>${escapeHtml(nickname)}</b>\n\n` +
     `<i>${status}. Завтра — новый. Кнопка ниже — перекатить.</i>`;
+
+  if (stackRemaining > 0) {
+    const n = stackRemaining;
+    const word =
+      n % 10 === 1 && n % 100 !== 11
+        ? "перекат"
+        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)
+          ? "переката"
+          : "перекатов";
+    body += `\n\n<i>⚡ В запасе ${n} ${word} без нейросети.</i>`;
+  }
 
   const past = previousNicks.filter((n) => n !== nickname).slice(0, 15);
   if (past.length > 0) {

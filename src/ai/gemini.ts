@@ -10,7 +10,10 @@ import {
 } from "./riddle-style.js";
 import {
   NICK_SYSTEM,
+  buildNickBatchUserPrompt,
   buildNickUserPrompt,
+  filterValidNickBatch,
+  parseNickBatchJson,
   sanitizeDailyNick,
 } from "./nick-style.js";
 import { logGeminiRequest, logGeminiResponse } from "./request-log.js";
@@ -34,6 +37,13 @@ const HINT_GEN_CONFIG: GenerationConfig = {
 
 const NICK_GEN_CONFIG: GenerationConfig = {
   temperature: 1.05,
+  topP: 0.92,
+  topK: 40,
+};
+
+const NICK_BATCH_GEN_CONFIG: GenerationConfig = {
+  responseMimeType: "application/json",
+  temperature: 1.1,
   topP: 0.92,
   topK: 40,
 };
@@ -229,6 +239,49 @@ Rules: same lore tone; NO hero name; NOT a quiz question. Do NOT start with "П�
       }
     }
     return null;
+  }
+
+  async generateDailyNickBatch(
+    nickDate: string,
+    seed: string,
+    count: number,
+    exclude: string[] = [],
+  ): Promise<string[]> {
+    const excludeSet = new Set(exclude.map((n) => n.toLowerCase()));
+    const prompt = buildNickBatchUserPrompt(nickDate, seed, count);
+
+    if (this.logRequests) {
+      logGeminiRequest("nick", this.modelName, prompt, {
+        nickDate,
+        seed,
+        batch: count,
+      });
+    }
+
+    const started = Date.now();
+    try {
+      const result = await this.getModel(NICK_BATCH_GEN_CONFIG, NICK_SYSTEM).generateContent(
+        prompt,
+      );
+      const raw = result.response.text()?.trim() ?? "";
+      const parsed = parseNickBatchJson(raw);
+      const nicks = filterValidNickBatch(parsed, count, excludeSet);
+      if (this.logRequests) {
+        logGeminiResponse("nick", raw, Date.now() - started, {
+          batch: nicks.length,
+          nicks,
+        });
+      }
+      if (nicks.length > 0) return nicks;
+      console.warn(
+        `[Gemini] nick batch rejected (${parsed.length} raw, 0 valid)`,
+      );
+    } catch (err) {
+      console.error(`[Gemini ←] nick batch ERROR ${Date.now() - started}ms`, err);
+    }
+
+    const fallback = await this.generateDailyNick(nickDate, `${seed}-fallback`);
+    return fallback ? [fallback] : [];
   }
 
   private parseJsonResponse(raw: string | undefined): {

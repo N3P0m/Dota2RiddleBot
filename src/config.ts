@@ -23,4 +23,9 @@ export const config = {
   /** Логировать промпты и ответы Gemini в консоль */
   logGeminiRequests: process.env.LOG_GEMINI_REQUESTS !== "false",
   nickTimeZone: process.env.NICK_TIMEZONE ?? "Europe/Moscow",
+  /** Сколько ников за один запрос к Gemini (перекаты без API, пока не кончится очередь) */
+  nickStackSize: Math.min(
+    10,
+    Math.max(5, Number(process.env.NICK_STACK_SIZE ?? "8")),
+  ),
 };

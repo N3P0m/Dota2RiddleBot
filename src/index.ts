@@ -21,7 +21,12 @@ const game = new GameService(
   config.showAnswer,
 );
 
-const dailyNick = new DailyNickService(repo, gemini, config.nickTimeZone);
+const dailyNick = new DailyNickService(
+  repo,
+  gemini,
+  config.nickTimeZone,
+  config.nickStackSize,
+);
 
 const bot = new Bot(config.telegramBotToken);
 registerHandlers(bot, game, repo, dailyNick);

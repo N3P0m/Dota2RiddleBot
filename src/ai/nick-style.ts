@@ -82,6 +82,72 @@ Do NOT copy the anchor. Do NOT output generic role labels without wordplay.
 Russian only. Output ONLY the nickname, nothing else.`;
 }
 
+export function buildNickBatchUserPrompt(
+  nickDate: string,
+  seed: string,
+  count: number,
+): string {
+  const anchors = [
+    pickNickReference(`${seed}:0`),
+    pickNickReference(`${seed}:1`),
+    pickNickReference(`${seed}:2`),
+  ];
+  return `Date: ${nickDate}. Seed: ${seed}.
+
+Generate exactly ${count} DIFFERENT Russian pub nicknames in ONE response.
+Style anchors (mechanics only, do NOT copy text): «${anchors.join("», «")}».
+
+Rules:
+- Each nick uses a distinct mechanic from the gallery (parody name, glued phrase, creep pun, insult pair, gross metaphor…).
+- All ${count} must be unique strings, same toxicity as references.
+- No generic «Токсик Мид» / «Грифер 322».
+- Russian only.
+
+Return JSON only: { "nicknames": ["ник1", "ник2", ...] } with exactly ${count} items.`;
+}
+
+export function parseNickBatchJson(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const tryParse = (text: string): string[] => {
+    const data = JSON.parse(text) as { nicknames?: unknown };
+    if (!Array.isArray(data.nicknames)) return [];
+    return data.nicknames
+      .filter((x): x is string => typeof x === "string")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
+  try {
+    return tryParse(raw);
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return [];
+    try {
+      return tryParse(match[0]);
+    } catch {
+      return [];
+    }
+  }
+}
+
+export function filterValidNickBatch(
+  rawList: string[],
+  maxCount: number,
+  exclude: Set<string> = new Set(),
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of rawList) {
+    const nick = sanitizeDailyNick(item);
+    if (!nick) continue;
+    const key = nick.toLowerCase();
+    if (seen.has(key) || exclude.has(key)) continue;
+    seen.add(key);
+    out.push(nick);
+    if (out.length >= maxCount) break;
+  }
+  return out;
+}
+
 export function sanitizeDailyNick(raw: string): string | null {
   let s = raw
     .trim()

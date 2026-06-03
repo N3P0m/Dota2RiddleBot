@@ -50,6 +50,14 @@ CREATE TABLE IF NOT EXISTS nick_history (
 
 CREATE INDEX IF NOT EXISTS idx_nick_history_user ON nick_history(user_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS nick_queues (
+  user_id TEXT NOT NULL,
+  nick_date TEXT NOT NULL,
+  queue TEXT NOT NULL DEFAULT '[]',
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, nick_date)
+);
+
 CREATE TABLE IF NOT EXISTS chat_riddle_history (
   chat_id TEXT PRIMARY KEY,
   hero_ids TEXT NOT NULL DEFAULT '[]',

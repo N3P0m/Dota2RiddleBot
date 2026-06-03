@@ -51,6 +51,7 @@ async function runNickCommand(
           formatTodayRu(),
           true,
           dailyNick.getPreviousNicks(uid),
+          dailyNick.getStackRemaining(uid),
         ),
         { parse_mode: "HTML", reply_markup: keyboardAfterNick() },
       );
@@ -111,6 +112,7 @@ async function runNickCommand(
         formatTodayRu(),
         result.cached,
         result.previousNicks,
+        result.stackRemaining,
       ),
       true,
       keyboardAfterNick(),
