@@ -19,7 +19,7 @@ import {
   formatDailyNick,
   formatMe,
 } from "./format.js";
-import { CB, keyboardAfterWin } from "./keyboards.js";
+import { CB, keyboardAfterNick, keyboardAfterWin } from "./keyboards.js";
 import {
   NICK_LOADING_STATUSES,
   pickRandomStatus,
@@ -40,17 +40,19 @@ async function runNickCommand(
   dailyNick: DailyNickService,
   forceNew: boolean,
 ): Promise<void> {
+  const uid = userId(ctx);
+
   if (!forceNew) {
-    const cached = dailyNick.getTodayNick(userId(ctx));
+    const cached = dailyNick.getTodayNick(uid);
     if (cached) {
       await ctx.reply(
         formatDailyNick(
           cached,
           formatTodayRu(),
           true,
-          dailyNick.getPreviousNicks(userId(ctx)),
+          dailyNick.getPreviousNicks(uid),
         ),
-        { parse_mode: "HTML" },
+        { parse_mode: "HTML", reply_markup: keyboardAfterNick() },
       );
       return;
     }
@@ -59,9 +61,20 @@ async function runNickCommand(
   await ctx.replyWithChatAction("typing");
 
   const firstStatus = pickRandomStatus(NICK_LOADING_STATUSES);
-  const statusMsg = await ctx.reply(firstStatus);
-  const msgChatId = statusMsg.chat.id;
-  const msgId = statusMsg.message_id;
+  const callbackMsg = ctx.callbackQuery?.message;
+  let msgChatId: number;
+  let msgId: number;
+
+  if (callbackMsg && "message_id" in callbackMsg) {
+    msgChatId = callbackMsg.chat.id;
+    msgId = callbackMsg.message_id;
+    await ctx.api.editMessageText(msgChatId, msgId, firstStatus);
+  } else {
+    const statusMsg = await ctx.reply(firstStatus);
+    msgChatId = statusMsg.chat.id;
+    msgId = statusMsg.message_id;
+  }
+
   const ticker = startLoadingTicker(
     ctx.api,
     msgChatId,
@@ -72,7 +85,7 @@ async function runNickCommand(
 
   try {
     const result = await dailyNick.getOrCreate(
-      userId(ctx),
+      uid,
       displayName(ctx),
       username(ctx),
       forceNew,
@@ -100,6 +113,7 @@ async function runNickCommand(
         result.previousNicks,
       ),
       true,
+      keyboardAfterNick(),
     );
   } catch (err) {
     ticker.stop();
@@ -161,6 +175,11 @@ export function registerHandlers(
   bot.callbackQuery(CB.RIDDLE, async (ctx) => {
     await ctx.answerCallbackQuery();
     await executeRiddle(ctx, game);
+  });
+
+  bot.callbackQuery(CB.NICK_NEW, async (ctx) => {
+    await ctx.answerCallbackQuery({ text: "Перекатываю…" });
+    await runNickCommand(ctx, dailyNick, true);
   });
 
   bot.on("message:text", async (ctx) => {

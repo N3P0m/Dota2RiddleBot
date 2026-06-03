@@ -8,7 +8,7 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 /riddle — новая загадка
 /hint — подсказка (короче и явнее)
 /nick — дотаник на сегодня (нейросеть)
-/nick new — перекатить ник на сегодня
+/nick new — перекатить (или кнопка под ником)
 /top — топ-10 игроков чата
 /me — ваши очки
 /cancel — сдаться (показать героя)
@@ -90,7 +90,7 @@ export function formatDailyNick(
   let body =
     `📛 <b>Твой дотаник на ${escapeHtml(dateLabel)}</b>\n\n` +
     `<b>${escapeHtml(nickname)}</b>\n\n` +
-    `<i>${status}. Завтра — новый. /nick new — перекатить.</i>`;
+    `<i>${status}. Завтра — новый. Кнопка ниже — перекатить.</i>`;
 
   const past = previousNicks.filter((n) => n !== nickname).slice(0, 15);
   if (past.length > 0) {
