@@ -4,6 +4,7 @@ import { GeminiClient } from "./ai/gemini.js";
 import { Repository } from "./db/repository.js";
 import { GameService } from "./game/round.js";
 import { DailyNickService } from "./game/daily-nick.js";
+import { registerBotCommands } from "./bot/commands.js";
 import { registerHandlers } from "./bot/handlers.js";
 
 const repo = new Repository(config.databasePath);
@@ -24,6 +25,8 @@ const dailyNick = new DailyNickService(repo, gemini, config.nickTimeZone);
 
 const bot = new Bot(config.telegramBotToken);
 registerHandlers(bot, game, repo, dailyNick);
+
+await registerBotCommands(bot);
 
 bot.catch((err) => {
   console.error("Bot error:", err);
