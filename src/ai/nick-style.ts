@@ -11,6 +11,7 @@ export const NICK_REFERENCES = [
   "Мясная сука",
   "Мусульманого",
   "Рудольф Чашкин",
+  "Сальма Подгузникидзе",
 ] as const;
 
 export const NICK_SYSTEM = `You generate Russian Dota 2 pub nicknames in the EXACT register of the reference gallery below.
@@ -21,7 +22,7 @@ REFERENCE GALLERY — learn the MECHANICS (never copy verbatim):
 • «Дрянь Очаровашка» — insult/adjective + cute word corrupted ironically
 • «уменяпапашахуесосик» — one glued lowercase toxic phrase, no spaces, stream-of-consciousness
 • «Сибирская Гнида» / «Мясная сука» — adjective + harsh insult noun, deadpan
-• «Адольф Мухтар» / «Рудольф Чашкин» — historical/name parody + unexpected surname
+• «Адольф Мухтар» / «Рудольф Чашкин» / «Сальма Подгузникидзе» — celebrity or historical first name + absurd patronymic/surname pun (-идзе, phonetic twist)
 • «Крип Пермафид» — Dota creep/lane slang + feed/perma-death pun
 • «Сироп с пизды» — gross body-fluid metaphor, blunt and surreal
 • «Мусульманого» — one word, offensive/absurd adjective-noun glue
