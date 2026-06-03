@@ -8,6 +8,11 @@ import {
   sanitizeHintText,
   type RiddleFormat,
 } from "./riddle-style.js";
+import {
+  NICK_SYSTEM,
+  buildNickUserPrompt,
+  sanitizeDailyNick,
+} from "./nick-style.js";
 import { logGeminiRequest, logGeminiResponse } from "./request-log.js";
 
 export type RiddlePack = {
@@ -28,18 +33,12 @@ const HINT_GEN_CONFIG: GenerationConfig = {
 };
 
 const NICK_GEN_CONFIG: GenerationConfig = {
-  temperature: 1.15,
-  topP: 0.95,
-  topK: 50,
+  temperature: 1.05,
+  topP: 0.92,
+  topK: 40,
 };
 
-const NICK_SYSTEM = `You invent harsh, cynical Russian Dota 2 pub nicknames — like real 3k toxic smurfs, not cute jokes.
-
-Tone: adult, biting, rude wordplay, hero/ability puns, feed/blame/mid ego, dark pub humor. NO baby talk, NO "funny animals", NO wholesome memes, NO soft adjectives (милый, пушистик, зайка, котик).
-
-Style reference (do NOT copy verbatim): Стив Блоуджобс, Ранальдинье Трюки, Дрянь Очаровашка, уменяпапашахуесосик, Сибирская Гнида, Адольф Мухтар, Крип Пермафид, Сироп с пизды, Мясная сука, Мусульманого, Рудольф Чашкин.
-
-Output: ONE nickname, Russian, 1-3 words, no quotes, no explanation.`;
+const NICK_MAX_ATTEMPTS = 2;
 
 export class GeminiClient {
   private genAI: GoogleGenerativeAI;
@@ -204,27 +203,30 @@ Rules: same lore tone; NO hero name; NOT a quiz question. Do NOT start with "П�
   }
 
   async generateDailyNick(nickDate: string, seed: string): Promise<string | null> {
-    const prompt = `Invent ONE harsh pub nickname for ${nickDate}. Seed: ${seed}.
-Must feel toxic/cynical, not childish. Bold pun or insult + Dota hero/role reference. Russian only. Unique today.`;
+    for (let attempt = 0; attempt < NICK_MAX_ATTEMPTS; attempt++) {
+      const prompt = buildNickUserPrompt(nickDate, seed, attempt);
 
-    if (this.logRequests) {
-      logGeminiRequest("nick", this.modelName, prompt, { nickDate, seed });
-    }
-
-    const started = Date.now();
-    try {
-      const result = await this.getModel(NICK_GEN_CONFIG, NICK_SYSTEM).generateContent(
-        prompt,
-      );
-      const raw = result.response.text()?.trim() ?? "";
-      const nick = sanitizeDailyNick(raw);
       if (this.logRequests) {
-        logGeminiResponse("nick", raw, Date.now() - started, nick ? { nick } : undefined);
+        logGeminiRequest("nick", this.modelName, prompt, { nickDate, seed, attempt });
       }
-      if (nick) return nick;
-      console.warn(`[Gemini] nick rejected: "${raw.slice(0, 80)}"`);
-    } catch (err) {
-      console.error(`[Gemini ←] nick ERROR ${Date.now() - started}ms`, err);
+
+      const started = Date.now();
+      try {
+        const result = await this.getModel(NICK_GEN_CONFIG, NICK_SYSTEM).generateContent(
+          prompt,
+        );
+        const raw = result.response.text()?.trim() ?? "";
+        const nick = sanitizeDailyNick(raw);
+        if (this.logRequests) {
+          logGeminiResponse("nick", raw, Date.now() - started, nick ? { nick } : undefined);
+        }
+        if (nick) return nick;
+        console.warn(
+          `[Gemini] nick rejected (attempt ${attempt + 1}): "${raw.slice(0, 80)}"`,
+        );
+      } catch (err) {
+        console.error(`[Gemini ←] nick ERROR ${Date.now() - started}ms`, err);
+      }
     }
     return null;
   }
@@ -318,42 +320,3 @@ function hintLevelRules(hintNumber: number): string {
   return `Level ${hintNumber} (MAX — stronger than ALL prior hints): near-reveal — spell/item/ult combo + attribute + role; prepared players guess instantly; still NO hero name in text.`;
 }
 
-const SOFT_NICK_WORDS = [
-  "милый",
-  "милая",
-  "зайка",
-  "котик",
-  "пушистик",
-  "солнышко",
-  "няш",
-  "люблю",
-  "дружб",
-  "весёл",
-  "весел",
-  "смешн",
-  "прикольн",
-  "кавай",
-  "чудес",
-  "волшеб",
-];
-
-function sanitizeDailyNick(raw: string): string | null {
-  let s = raw
-    .trim()
-    .replace(/^["'`«]|["'`»]$/g, "")
-    .replace(/^ник\s*:\s*/i, "")
-    .replace(/^nickname\s*:\s*/i, "")
-    .split("\n")[0]!
-    .trim();
-
-  if (s.length < 4 || s.length > 64) return null;
-  if (/[?!]/.test(s)) return null;
-  const words = s.split(/\s+/).filter(Boolean);
-  if (words.length < 2 || words.length > 5) return null;
-
-  const lower = s.toLowerCase().replace(/ё/g, "е");
-  for (const soft of SOFT_NICK_WORDS) {
-    if (lower.includes(soft)) return null;
-  }
-  return s;
-}
