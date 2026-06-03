@@ -11,13 +11,13 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 /nick new — перекатить ник на сегодня
 /top — топ-10 игроков чата
 /me — ваши очки
-/cancel — отменить раунд
+/cancel — сдаться (показать героя)
 /help — справка
 
 <b>Как играть:</b>
 1. /riddle или кнопка «Новая загадка»
 2. Ответ: <b>!имя</b> (<code>!пудж</code>, <code>!largo</code>)
-3. Под загадкой: <b>Подсказка</b> и <b>Закончить</b>
+3. Под загадкой: <b>Подсказка</b> (каждая явнее) и <b>Сдаться</b>
 4. После угадывания: <b>Топ</b> и <b>Новая загадка</b>
 
 Команды тоже работают: /hint, /cancel, /top, /nick`;
@@ -31,8 +31,22 @@ export function formatRiddle(riddle: string, showAnswer?: string): string {
   return body;
 }
 
-export function formatHint(hint: string): string {
-  return `💡 <b>Подсказка:</b>\n\n${escapeHtml(formatReadableText(hint))}`;
+export function formatHint(hint: string, hintNumber: number): string {
+  const label =
+    hintNumber <= 1
+      ? "Подсказка"
+      : `Подсказка #${hintNumber} (сильнее предыдущих)`;
+  return `💡 <b>${label}:</b>\n\n${escapeHtml(formatReadableText(hint))}`;
+}
+
+export function formatSurrender(
+  heroNameRu: string,
+  heroNameEn: string,
+): string {
+  return (
+    `🏳 <b>Сдались!</b> Это был <b>${escapeHtml(heroNameRu)}</b> (${escapeHtml(heroNameEn)}).\n\n` +
+    `<i>Герой в пройденных — в новых загадках почти не повторится.</i>`
+  );
 }
 
 export function formatWin(

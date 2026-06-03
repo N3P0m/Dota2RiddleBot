@@ -20,7 +20,11 @@ export type AnswerResult =
   | { ok: false; reason: "no_round" | "already_won" | "wrong" };
 
 export type HintResult =
-  | { ok: true; hint: string }
+  | { ok: true; hint: string; hintNumber: number }
+  | { ok: false; reason: "no_round" | "already_won" };
+
+export type SurrenderResult =
+  | { ok: true; hero: Hero }
   | { ok: false; reason: "no_round" | "already_won" };
 
 export class GameService {
@@ -136,17 +140,31 @@ export class GameService {
       return { ok: false, reason: "no_round" };
     }
 
-    const hint = await this.gemini.generateHint(hero, round.riddle);
+    const hintNumber = round.hints_used + 1;
+    const hint = await this.gemini.generateHint(hero, round.riddle, hintNumber);
     this.repo.incrementHints(chatId);
-    return { ok: true, hint };
+    return { ok: true, hint, hintNumber };
   }
 
-  cancelRound(chatId: string): boolean {
-    const round = this.repo.getRound(chatId);
-    if (!round) return false;
-    this.repo.removeLastRiddleHeroFromHistory(chatId, round.hero_id);
+  /** Сдача: показать героя, оставить в истории чата (не выпадет снова). */
+  surrenderRound(chatId: string): SurrenderResult {
+    const round = this.repo.getActiveRound(chatId);
+    if (!round) {
+      const any = this.repo.getRound(chatId);
+      if (any?.winner_user_id) {
+        return { ok: false, reason: "already_won" };
+      }
+      return { ok: false, reason: "no_round" };
+    }
+
+    const hero = getHeroById(round.hero_id);
+    if (!hero) {
+      this.repo.deleteRound(chatId);
+      return { ok: false, reason: "no_round" };
+    }
+
     this.repo.deleteRound(chatId);
-    return true;
+    return { ok: true, hero };
   }
 
   hasActiveRound(chatId: string): boolean {

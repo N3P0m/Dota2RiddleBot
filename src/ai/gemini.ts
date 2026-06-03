@@ -154,15 +154,24 @@ JSON only:
     return null;
   }
 
-  async generateHint(hero: Hero, riddle: string): Promise<string> {
+  async generateHint(
+    hero: Hero,
+    riddle: string,
+    hintNumber: number,
+  ): Promise<string> {
+    const levelRules = hintLevelRules(hintNumber);
     const prompt = `Hint for active round. RUSSIAN ONLY, 1–2 sentences.
+
+This is hint #${hintNumber} in this round. It MUST be noticeably more revealing than any previous hint in the same round (players already saw ${hintNumber - 1} weaker hint(s)).
 
 Riddle already shown:
 """${riddle}"""
 
-Hero: ${hero.name_en} / ${hero.name_ru}. Roles: ${hero.roles.join(", ")}.
+Hero: ${hero.name_en} / ${hero.name_ru}. Roles: ${hero.roles.join(", ")}. Primary attribute: ${hero.primary_attr}.
 
-Rules: clearer ability/role clue; same lore tone; NO hero name; NOT a quiz question. Do NOT start with "Подсказка:". Plain text, no markdown. Use \\n\\n between sentences if more than one.`;
+${levelRules}
+
+Rules: same lore tone; NO hero name; NOT a quiz question. Do NOT start with "Подсказка:". Plain text, no markdown. Use \\n\\n between sentences if more than one.`;
 
     if (this.logRequests) {
       logGeminiRequest("hint", this.modelName, prompt, {
@@ -191,7 +200,7 @@ Rules: clearer ability/role clue; same lore tone; NO hero name; NOT a quiz quest
       console.error(`[Gemini ←] hint ERROR ${Date.now() - started}ms`, err);
     }
 
-    return this.fallbackHint(hero);
+    return this.fallbackHint(hero, hintNumber);
   }
 
   async generateDailyNick(nickDate: string, seed: string): Promise<string | null> {
@@ -275,7 +284,7 @@ Must feel toxic/cynical, not childish. Bold pun or insult + Dota hero/role refer
     ].join("\n\n");
   }
 
-  private fallbackHint(hero: Hero): string {
+  private fallbackHint(hero: Hero, hintNumber: number): string {
     const attr =
       hero.primary_attr === "str"
         ? "сила"
@@ -284,8 +293,29 @@ Must feel toxic/cynical, not childish. Bold pun or insult + Dota hero/role refer
           : hero.primary_attr === "int"
             ? "интеллект"
             : "универсал";
-    return `Его стихия — ${attr}; на поле он чаще всего ${hero.roles.slice(0, 2).join(" и ")}.`;
+    const roles = hero.roles.slice(0, 2).join(" и ");
+
+    if (hintNumber <= 1) {
+      return `На линии его чаще видят как ${roles}; стихия — ${attr}, без явных имён способностей.`;
+    }
+    if (hintNumber === 2) {
+      return `Стихия — ${attr}, роли: ${roles}. Вспомни фирменный скилл или предмет, с которым его узнают в пабе.`;
+    }
+    return `Почти ответ: ${attr}, ${roles} — назови вслух фирменный скилл, ульт или предмет, без имени героя в тексте; догадаться уже должно быть легко.`;
   }
+}
+
+function hintLevelRules(hintNumber: number): string {
+  if (hintNumber <= 1) {
+    return `Level 1 (MILD): atmosphere + vague role/lane only; NO signature ability names; weakest clue.`;
+  }
+  if (hintNumber === 2) {
+    return `Level 2 (STRONGER than hint #1): one signature skill OR iconic item OR lane matchup; still NO hero name.`;
+  }
+  if (hintNumber === 3) {
+    return `Level 3 (STRONGER than hints #1–#2): two concrete mechanics, voice-line mood, or item combo players instantly associate with this hero.`;
+  }
+  return `Level ${hintNumber} (MAX — stronger than ALL prior hints): near-reveal — spell/item/ult combo + attribute + role; prepared players guess instantly; still NO hero name in text.`;
 }
 
 const SOFT_NICK_WORDS = [

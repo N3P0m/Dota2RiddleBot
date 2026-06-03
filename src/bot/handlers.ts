@@ -150,7 +150,7 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.CANCEL, async (ctx) => {
     const ok = await executeCancel(ctx, game);
-    await ctx.answerCallbackQuery(ok ? "Раунд отменён" : undefined);
+    await ctx.answerCallbackQuery(ok ? "Ответ показан" : undefined);
   });
 
   bot.callbackQuery(CB.TOP, async (ctx) => {

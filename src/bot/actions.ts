@@ -5,6 +5,7 @@ import {
   formatHint,
   formatLeaderboard,
   formatRiddle,
+  formatSurrender,
   formatWin,
 } from "./format.js";
 import { keyboardAfterWin, keyboardDuringRound } from "./keyboards.js";
@@ -48,7 +49,7 @@ export async function executeRiddle(
   const uid = userId(ctx);
 
   if (game.hasActiveRound(cid)) {
-    await ctx.reply("⏳ Уже идёт раунд! Угадайте героя или нажмите «Закончить».");
+    await ctx.reply("⏳ Уже идёт раунд! Угадайте героя или нажмите «Сдаться».");
     return;
   }
 
@@ -75,7 +76,7 @@ export async function executeRiddle(
         ctx.api,
         msgChatId,
         msgId,
-        "⏳ Уже идёт раунд! Угадайте героя или нажмите «Закончить».",
+        "⏳ Уже идёт раунд! Угадайте героя или нажмите «Сдаться».",
       );
       return;
     }
@@ -142,7 +143,7 @@ export async function executeHint(ctx: Context, game: GameService): Promise<void
       ctx.api,
       msgChatId,
       msgId,
-      formatHint(result.hint),
+      formatHint(result.hint, result.hintNumber),
       true,
       keyboardDuringRound(),
     );
@@ -166,21 +167,41 @@ export async function executeCancel(
   const uid = userId(ctx);
   const starter = game.getRoundStarter(cid);
 
-  if (!game.hasAnyRound(cid)) {
-    await ctx.reply("Нет активного раунда.");
+  if (!game.hasActiveRound(cid)) {
+    const msg = game.hasAnyRound(cid)
+      ? "🏁 Герой уже угадан! Запустите новую загадку."
+      : "Нет активного раунда.";
+    await ctx.reply(msg, {
+      reply_markup: game.hasAnyRound(cid) ? keyboardAfterWin() : undefined,
+    });
     return false;
   }
 
-  const canCancel = uid === starter || (await isGroupAdmin(ctx));
-  if (!canCancel) {
+  const canSurrender = uid === starter || (await isGroupAdmin(ctx));
+  if (!canSurrender) {
     await ctx.reply(
-      "Закончить раунд может только тот, кто его запустил, или админ чата.",
+      "Сдаться может только тот, кто запустил загадку, или админ чата.",
     );
     return false;
   }
 
-  game.cancelRound(cid);
-  await ctx.reply("❌ Раунд отменён.");
+  const result = game.surrenderRound(cid);
+  if (!result.ok) {
+    const msg =
+      result.reason === "already_won"
+        ? "🏁 Герой уже угадан! Запустите новую загадку."
+        : "Нет активного раунда.";
+    await ctx.reply(msg, {
+      reply_markup:
+        result.reason === "already_won" ? keyboardAfterWin() : undefined,
+    });
+    return false;
+  }
+
+  await ctx.reply(
+    formatSurrender(result.hero.name_ru, result.hero.name_en),
+    { parse_mode: "HTML", reply_markup: keyboardAfterWin() },
+  );
   return true;
 }
 
