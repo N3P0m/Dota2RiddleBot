@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS rounds (
   winner_user_id TEXT,
   riddle TEXT,
   answer_variants TEXT,
-  hints_used INTEGER NOT NULL DEFAULT 0
+  hints_used INTEGER NOT NULL DEFAULT 0,
+  round_mode TEXT NOT NULL DEFAULT 'text',
+  emo_skills TEXT
 );
 
 CREATE TABLE IF NOT EXISTS daily_nicks (

@@ -1,6 +1,12 @@
 import type { GeminiClient } from "../ai/gemini.js";
 import type { Repository } from "../db/repository.js";
+import {
+  formatEmoHintFromSkills,
+  parseEmoSkills,
+  serializeEmoSkills,
+} from "./emo-skills.js";
 import { getPresetRiddle } from "./preset-riddles.js";
+import { isEmojiRound, type RoundMode } from "./round-mode.js";
 import {
   collectAnswerVariants,
   getHeroById,
@@ -12,7 +18,13 @@ import { pickHeroForSession } from "../heroes/pick.js";
 import type { RiddleSource } from "../config.js";
 
 export type StartRoundResult =
-  | { ok: true; riddle: string; hero: Hero; showAnswer?: string }
+  | {
+      ok: true;
+      riddle: string;
+      hero: Hero;
+      showAnswer?: string;
+      mode: RoundMode;
+    }
   | { ok: false; reason: "active_round" };
 
 export type AnswerResult =
@@ -39,6 +51,7 @@ export class GameService {
   async startRound(
     chatId: string,
     userId: string,
+    mode: RoundMode = "text",
   ): Promise<StartRoundResult> {
     const existing = this.repo.getRound(chatId);
     if (existing && !existing.winner_user_id) {
@@ -59,8 +72,15 @@ export class GameService {
     this.repo.addRiddleHeroToHistory(chatId, hero.id);
     let riddle: string;
     let aiVariants: string[] = [];
+    let emoSkillsJson: string | null = null;
 
-    if (this.riddleSource === "ai") {
+    if (mode === "emoji") {
+      const pack = await this.gemini.generateEmoRiddlePack(hero);
+      riddle = pack.emojis;
+      aiVariants = pack.possibleAnswers;
+      emoSkillsJson = serializeEmoSkills(pack.skills);
+      console.log(`[Game] emo riddle → ${hero.name_en} (${hero.name_ru})`);
+    } else if (this.riddleSource === "ai") {
       const pack = await this.gemini.generateRiddlePack(hero);
       riddle = pack.riddle;
       aiVariants = pack.possibleAnswers;
@@ -70,7 +90,15 @@ export class GameService {
     }
 
     const answerVariants = collectAnswerVariants(hero, aiVariants);
-    this.repo.createRound(chatId, hero.id, userId, riddle, answerVariants);
+    this.repo.createRound(
+      chatId,
+      hero.id,
+      userId,
+      riddle,
+      answerVariants,
+      mode,
+      emoSkillsJson,
+    );
 
     const answerLabel = `${hero.name_ru} / ${hero.name_en}`;
     return {
@@ -78,6 +106,7 @@ export class GameService {
       riddle,
       hero,
       showAnswer: this.showAnswer ? answerLabel : undefined,
+      mode,
     };
   }
 
@@ -141,6 +170,21 @@ export class GameService {
     }
 
     const hintNumber = round.hints_used + 1;
+
+    if (isEmojiRound(round.round_mode)) {
+      const skills = parseEmoSkills(round.emo_skills);
+      if (skills.length === 0) {
+        return { ok: false, reason: "no_round" };
+      }
+      if (hintNumber > skills.length) {
+        const hint = formatEmoHintFromSkills(skills, skills.length);
+        return { ok: true, hint, hintNumber: skills.length };
+      }
+      const hint = formatEmoHintFromSkills(skills, hintNumber);
+      this.repo.incrementHints(chatId);
+      return { ok: true, hint, hintNumber };
+    }
+
     const hint = await this.gemini.generateHint(hero, round.riddle, hintNumber);
     this.repo.incrementHints(chatId);
     return { ok: true, hint, hintNumber };
@@ -177,5 +221,10 @@ export class GameService {
 
   getRoundStarter(chatId: string): string | null {
     return this.repo.getRound(chatId)?.started_by ?? null;
+  }
+
+  getRoundMode(chatId: string): RoundMode {
+    const round = this.repo.getRound(chatId);
+    return isEmojiRound(round?.round_mode) ? "emoji" : "text";
   }
 }

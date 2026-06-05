@@ -26,10 +26,12 @@ export type RoundRow = {
   riddle: string | null;
   answer_variants: string | null;
   hints_used: number;
+  round_mode: string;
+  emo_skills: string | null;
 };
 
 const ROUND_COLUMNS =
-  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used";
+  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills";
 
 export class Repository {
   private db: Database.Database;
@@ -59,6 +61,14 @@ export class Repository {
       this.db.exec(
         `ALTER TABLE rounds ADD COLUMN hints_used INTEGER NOT NULL DEFAULT 0`,
       );
+    }
+    if (!names.has("round_mode")) {
+      this.db.exec(
+        `ALTER TABLE rounds ADD COLUMN round_mode TEXT NOT NULL DEFAULT 'text'`,
+      );
+    }
+    if (!names.has("emo_skills")) {
+      this.db.exec(`ALTER TABLE rounds ADD COLUMN emo_skills TEXT`);
     }
 
     this.db.exec(`
@@ -166,13 +176,15 @@ export class Repository {
     startedBy: string,
     riddle: string,
     answerVariants: string[],
+    roundMode: "text" | "emoji" = "text",
+    emoSkills: string | null = null,
   ): RoundRow {
     const startedAt = Date.now();
     const variantsJson = JSON.stringify(answerVariants);
     this.db
       .prepare(
-        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id)
-         VALUES (?, ?, ?, ?, ?, ?, 0, NULL)
+        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills)
+         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
          ON CONFLICT(chat_id) DO UPDATE SET
            hero_id = excluded.hero_id,
            started_by = excluded.started_by,
@@ -180,9 +192,20 @@ export class Repository {
            riddle = excluded.riddle,
            answer_variants = excluded.answer_variants,
            hints_used = 0,
-           winner_user_id = NULL`,
+           winner_user_id = NULL,
+           round_mode = excluded.round_mode,
+           emo_skills = excluded.emo_skills`,
       )
-      .run(chatId, heroId, startedBy, startedAt, riddle, variantsJson);
+      .run(
+        chatId,
+        heroId,
+        startedBy,
+        startedAt,
+        riddle,
+        variantsJson,
+        roundMode,
+        emoSkills,
+      );
     return this.getActiveRound(chatId)!;
   }
 

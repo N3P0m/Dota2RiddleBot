@@ -7,6 +7,7 @@ import {
   chatId,
   displayName,
   executeCancel,
+  executeEmoRiddle,
   executeHint,
   executeRiddle,
   executeTop,
@@ -144,6 +145,7 @@ export function registerHandlers(
   });
 
   bot.command("riddle", async (ctx) => executeRiddle(ctx, game));
+  bot.command("emo_riddle", async (ctx) => executeEmoRiddle(ctx, game));
   bot.command("hint", async (ctx) => executeHint(ctx, game));
   bot.command("top", async (ctx) => executeTop(ctx, repo));
   bot.command("cancel", async (ctx) => executeCancel(ctx, game));
@@ -177,6 +179,11 @@ export function registerHandlers(
   bot.callbackQuery(CB.RIDDLE, async (ctx) => {
     await ctx.answerCallbackQuery();
     await executeRiddle(ctx, game);
+  });
+
+  bot.callbackQuery(CB.EMO_RIDDLE, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeEmoRiddle(ctx, game);
   });
 
   bot.callbackQuery(CB.NICK_NEW, async (ctx) => {

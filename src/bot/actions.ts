@@ -2,6 +2,8 @@ import type { Context } from "grammy";
 import type { GameService } from "../game/round.js";
 import type { Repository } from "../db/repository.js";
 import {
+  formatEmoHint,
+  formatEmoRiddle,
   formatHint,
   formatLeaderboard,
   formatRiddle,
@@ -10,6 +12,7 @@ import {
 } from "./format.js";
 import { keyboardAfterWin, keyboardDuringRound } from "./keyboards.js";
 import {
+  EMO_LOADING_STATUSES,
   HINT_LOADING_STATUSES,
   RIDDLE_LOADING_STATUSES,
   pickRandomStatus,
@@ -41,9 +44,10 @@ async function isGroupAdmin(ctx: Context): Promise<boolean> {
   return member.status === "creator" || member.status === "administrator";
 }
 
-export async function executeRiddle(
+async function executeRoundStart(
   ctx: Context,
   game: GameService,
+  mode: "text" | "emoji",
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
@@ -55,7 +59,9 @@ export async function executeRiddle(
 
   await ctx.replyWithChatAction("typing");
 
-  const firstStatus = pickRandomStatus(RIDDLE_LOADING_STATUSES);
+  const loadingFrames =
+    mode === "emoji" ? EMO_LOADING_STATUSES : RIDDLE_LOADING_STATUSES;
+  const firstStatus = pickRandomStatus(loadingFrames);
   const statusMsg = await ctx.reply(firstStatus);
   const msgChatId = statusMsg.chat.id;
   const msgId = statusMsg.message_id;
@@ -63,12 +69,12 @@ export async function executeRiddle(
     ctx.api,
     msgChatId,
     msgId,
-    RIDDLE_LOADING_STATUSES,
+    loadingFrames,
     firstStatus,
   );
 
   try {
-    const result = await game.startRound(cid, uid);
+    const result = await game.startRound(cid, uid, mode);
     ticker.stop();
 
     if (!result.ok) {
@@ -81,11 +87,16 @@ export async function executeRiddle(
       return;
     }
 
+    const text =
+      result.mode === "emoji"
+        ? formatEmoRiddle(result.riddle, result.showAnswer)
+        : formatRiddle(result.riddle, result.showAnswer);
+
     await replaceMessage(
       ctx.api,
       msgChatId,
       msgId,
-      formatRiddle(result.riddle, result.showAnswer),
+      text,
       true,
       keyboardDuringRound(),
     );
@@ -101,6 +112,20 @@ export async function executeRiddle(
   }
 }
 
+export async function executeRiddle(
+  ctx: Context,
+  game: GameService,
+): Promise<void> {
+  await executeRoundStart(ctx, game, "text");
+}
+
+export async function executeEmoRiddle(
+  ctx: Context,
+  game: GameService,
+): Promise<void> {
+  await executeRoundStart(ctx, game, "emoji");
+}
+
 export async function executeHint(ctx: Context, game: GameService): Promise<void> {
   const cid = chatId(ctx);
 
@@ -109,6 +134,30 @@ export async function executeHint(ctx: Context, game: GameService): Promise<void
       ? "🏁 Герой уже угадан! Запустите новую загадку."
       : "Нет активной загадки.";
     await ctx.reply(msg);
+    return;
+  }
+
+  const emojiMode = game.getRoundMode(cid) === "emoji";
+
+  if (emojiMode) {
+    try {
+      const result = await game.requestHint(cid);
+      if (!result.ok) {
+        const msg =
+          result.reason === "no_round"
+            ? "Нет активной загадки."
+            : "🏁 Герой уже угадан!";
+        await ctx.reply(msg);
+        return;
+      }
+      await ctx.reply(
+        formatEmoHint(result.hint, result.hintNumber),
+        { parse_mode: "HTML", reply_markup: keyboardDuringRound() },
+      );
+    } catch (err) {
+      console.error("hint error:", err);
+      await ctx.reply("❌ Подсказка не вышла.");
+    }
     return;
   }
 

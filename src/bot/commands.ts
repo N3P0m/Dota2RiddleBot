@@ -3,6 +3,7 @@ import type { Bot } from "grammy";
 /** Меню при вводе «/» в чате (setMyCommands). */
 const BOT_COMMANDS = [
   { command: "riddle", description: "Новая загадка" },
+  { command: "emo_riddle", description: "Эмо-загадка (скиллы эмодзи)" },
   { command: "hint", description: "Подсказка (каждая явнее)" },
   { command: "nick", description: "Дотаник на сегодня" },
   { command: "top", description: "Топ-10 чата" },

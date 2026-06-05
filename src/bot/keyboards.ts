@@ -5,6 +5,7 @@ export const CB = {
   CANCEL: "cancel",
   TOP: "top",
   RIDDLE: "riddle",
+  EMO_RIDDLE: "emo_riddle",
   NICK_NEW: "nick_new",
 } as const;
 
@@ -21,7 +22,9 @@ export function keyboardDuringRound(): InlineKeyboard {
 export function keyboardAfterWin(): InlineKeyboard {
   return new InlineKeyboard()
     .text("🏆 Топ", CB.TOP)
-    .text("🧩 Новая загадка", CB.RIDDLE);
+    .text("🧩 Новая загадка", CB.RIDDLE)
+    .row()
+    .text("🎭 Эмо-загадка", CB.EMO_RIDDLE);
 }
 
 /** Под сообщением с дотаником. */

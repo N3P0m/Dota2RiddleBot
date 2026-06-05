@@ -6,6 +6,7 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 
 <b>Команды:</b>
 /riddle — новая загадка
+/emo-riddle — эмо-загадка (1 эмодзи = 1 скилл)
 /hint — подсказка (короче и явнее)
 /nick — дотаник на сегодня (нейросеть)
 /nick new — перекатить (или кнопка под ником)
@@ -16,9 +17,11 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 
 <b>Как играть:</b>
 1. /riddle или кнопка «Новая загадка»
-2. Ответ: <b>!имя</b> (<code>!пудж</code>, <code>!largo</code>)
-3. Под загадкой: <b>Подсказка</b> (каждая явнее) и <b>Сдаться</b>
-4. После угадывания: <b>Топ</b> и <b>Новая загадка</b>
+2. /emo-riddle — герой зашифрован эмодзи-скиллами
+3. Ответ: <b>!имя</b> (<code>!пудж</code>, <code>!largo</code>)
+4. Под загадкой: <b>Подсказка</b> (каждая явнее) и <b>Сдаться</b>
+5. В эмо-режиме подсказка раскрывает скилл за эмодзи
+6. После угадывания: <b>Топ</b> и новая загадка
 
 Команды тоже работают: /hint, /cancel, /top, /nick`;
 
@@ -37,6 +40,34 @@ export function formatHint(hint: string, hintNumber: number): string {
       ? "Подсказка"
       : `Подсказка #${hintNumber} (сильнее предыдущих)`;
   return `💡 <b>${label}:</b>\n\n${escapeHtml(formatReadableText(hint))}`;
+}
+
+export function formatEmoRiddle(emojis: string, showAnswer?: string): string {
+  let body =
+    `🎭 <b>Эмо-загадка:</b>\n\n` +
+    `${emojis}\n\n` +
+    `<i>Каждый эмодзи — один скилл героя. Ответ: <code>!имя</code>. /hint — расшифровка скиллов</i>`;
+  if (showAnswer) {
+    body += `\n\n🔧 <b>Ответ (тест):</b> ${escapeHtml(showAnswer)}`;
+  }
+  return body;
+}
+
+export function formatEmoHint(hint: string, hintNumber: number): string {
+  const lines = hint
+    .split("\n")
+    .map((line) => {
+      const sep = line.indexOf(" — ");
+      if (sep === -1) return escapeHtml(line);
+      const emoji = line.slice(0, sep);
+      const skill = escapeHtml(line.slice(sep + 3));
+      return `${emoji} — ${skill}`;
+    })
+    .join("\n");
+
+  const label =
+    hintNumber <= 1 ? "Подсказка" : `Подсказка #${hintNumber}`;
+  return `💡 <b>${label}:</b>\n\n${lines}`;
 }
 
 export function formatSurrender(
