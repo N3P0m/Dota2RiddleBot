@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { heroes } from "../heroes/match.js";
 import { todayKey } from "../game/nick-date.js";
 import { INSULTS_SEED } from "../game/insults-seed.js";
+import { FLOOD_TAUNTS_SEED } from "../game/work-taunts-seed.js";
+import type { FloodTauntSlot } from "../game/work-hours.js";
 import { readFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -219,9 +221,30 @@ export class Repository {
         used_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_chat_taunt_history ON chat_taunt_history(chat_id, used_at DESC);
+
+      CREATE TABLE IF NOT EXISTS work_taunts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL UNIQUE,
+        time_slot TEXT NOT NULL DEFAULT 'any',
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS chat_round_activity (
+        chat_id TEXT PRIMARY KEY,
+        round_starts TEXT NOT NULL DEFAULT '[]',
+        work_taunt_hour_key TEXT,
+        work_taunts_sent_hour INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS chat_work_taunt_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL,
+        work_taunt_id INTEGER NOT NULL,
+        used_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_work_taunt_history ON chat_work_taunt_history(chat_id, used_at DESC);
     `);
 
     this.seedInsultsIfEmpty();
+    this.seedWorkTaunts();
 
     const nickQueueCols = this.db
       .prepare(`PRAGMA table_info(nick_queues)`)
@@ -1057,6 +1080,178 @@ export class Repository {
       hintsUsed: round?.hints_used ?? 0,
       tauntsSent: round?.taunts_sent ?? 0,
     };
+  }
+
+  private seedWorkTaunts(): void {
+    const now = Date.now();
+    const stmt = this.db.prepare(
+      `INSERT OR IGNORE INTO work_taunts (text, time_slot, created_at) VALUES (?, ?, ?)`,
+    );
+    let added = 0;
+    for (const item of FLOOD_TAUNTS_SEED) {
+      const r = stmt.run(item.text, item.slot, now);
+      if (r.changes > 0) added++;
+    }
+    if (added > 0) {
+      console.log(`[FloodTaunt] Seed sync: +${added} flood taunts`);
+    }
+  }
+
+  recordChatRoundStart(
+    chatId: string,
+    timestampMs: number,
+    windowMs: number,
+  ): void {
+    const row = this.db
+      .prepare(`SELECT round_starts FROM chat_round_activity WHERE chat_id = ?`)
+      .get(chatId) as { round_starts: string } | undefined;
+
+    let starts: number[] = [];
+    if (row) {
+      try {
+        const parsed = JSON.parse(row.round_starts) as unknown;
+        if (Array.isArray(parsed)) {
+          starts = parsed.filter((x): x is number => typeof x === "number");
+        }
+      } catch {
+        starts = [];
+      }
+    }
+
+    starts.push(timestampMs);
+    const cutoff = timestampMs - windowMs;
+    starts = starts.filter((t) => t >= cutoff).slice(-30);
+
+    this.db
+      .prepare(
+        `INSERT INTO chat_round_activity (chat_id, round_starts, work_taunt_hour_key, work_taunts_sent_hour)
+         VALUES (?, ?, NULL, 0)
+         ON CONFLICT(chat_id) DO UPDATE SET round_starts = excluded.round_starts`,
+      )
+      .run(chatId, JSON.stringify(starts));
+  }
+
+  countRecentRounds(
+    chatId: string,
+    windowMs: number,
+    nowMs: number,
+  ): number {
+    const row = this.db
+      .prepare(`SELECT round_starts FROM chat_round_activity WHERE chat_id = ?`)
+      .get(chatId) as { round_starts: string } | undefined;
+    if (!row) return 1;
+
+    try {
+      const starts = JSON.parse(row.round_starts) as unknown;
+      if (!Array.isArray(starts)) return 1;
+      const cutoff = nowMs - windowMs;
+      return starts.filter((t): t is number => typeof t === "number" && t >= cutoff)
+        .length;
+    } catch {
+      return 1;
+    }
+  }
+
+  getWorkTauntsSentInHour(chatId: string, hourKey: string): number {
+    const row = this.db
+      .prepare(
+        `SELECT work_taunt_hour_key, work_taunts_sent_hour FROM chat_round_activity WHERE chat_id = ?`,
+      )
+      .get(chatId) as
+      | { work_taunt_hour_key: string | null; work_taunts_sent_hour: number }
+      | undefined;
+    if (!row || row.work_taunt_hour_key !== hourKey) return 0;
+    return row.work_taunts_sent_hour;
+  }
+
+  incrementWorkTauntsSent(chatId: string, hourKey: string): void {
+    const row = this.db
+      .prepare(
+        `SELECT work_taunt_hour_key FROM chat_round_activity WHERE chat_id = ?`,
+      )
+      .get(chatId) as { work_taunt_hour_key: string | null } | undefined;
+
+    if (!row) {
+      this.db
+        .prepare(
+          `INSERT INTO chat_round_activity (chat_id, round_starts, work_taunt_hour_key, work_taunts_sent_hour)
+           VALUES (?, '[]', ?, 1)`,
+        )
+        .run(chatId, hourKey);
+      return;
+    }
+
+    if (row.work_taunt_hour_key === hourKey) {
+      this.db
+        .prepare(
+          `UPDATE chat_round_activity SET work_taunts_sent_hour = work_taunts_sent_hour + 1 WHERE chat_id = ?`,
+        )
+        .run(chatId);
+    } else {
+      this.db
+        .prepare(
+          `UPDATE chat_round_activity SET work_taunt_hour_key = ?, work_taunts_sent_hour = 1 WHERE chat_id = ?`,
+        )
+        .run(hourKey, chatId);
+    }
+  }
+
+  pickRandomFloodTaunt(
+    chatId: string,
+    slot: FloodTauntSlot,
+    isWorkHours: boolean,
+  ): string | null {
+    const recent = this.db
+      .prepare(
+        `SELECT work_taunt_id FROM chat_work_taunt_history
+         WHERE chat_id = ? ORDER BY used_at DESC LIMIT 6`,
+      )
+      .all(chatId) as { work_taunt_id: number }[];
+    const excludeIds = recent.map((r) => r.work_taunt_id);
+
+    const slots: FloodTauntSlot[] = isWorkHours
+      ? [slot, "work"]
+      : [slot, "leisure"];
+
+    for (const s of slots) {
+      let row: { id: number; text: string } | undefined;
+      if (excludeIds.length > 0) {
+        const ph = excludeIds.map(() => "?").join(",");
+        row = this.db
+          .prepare(
+            `SELECT id, text FROM work_taunts
+             WHERE time_slot = ? AND id NOT IN (${ph})
+             ORDER BY RANDOM() LIMIT 1`,
+          )
+          .get(s, ...excludeIds) as { id: number; text: string } | undefined;
+      } else {
+        row = this.db
+          .prepare(
+            `SELECT id, text FROM work_taunts WHERE time_slot = ? ORDER BY RANDOM() LIMIT 1`,
+          )
+          .get(s) as { id: number; text: string } | undefined;
+      }
+      if (row) {
+        this.db
+          .prepare(
+            `INSERT INTO chat_work_taunt_history (chat_id, work_taunt_id, used_at) VALUES (?, ?, ?)`,
+          )
+          .run(chatId, row.id, Date.now());
+        return row.text;
+      }
+    }
+
+    const fallback = this.db
+      .prepare(`SELECT id, text FROM work_taunts ORDER BY RANDOM() LIMIT 1`)
+      .get() as { id: number; text: string } | undefined;
+    if (!fallback) return null;
+
+    this.db
+      .prepare(
+        `INSERT INTO chat_work_taunt_history (chat_id, work_taunt_id, used_at) VALUES (?, ?, ?)`,
+      )
+      .run(chatId, fallback.id, Date.now());
+    return fallback.text;
   }
 
   close(): void {

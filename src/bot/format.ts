@@ -108,6 +108,10 @@ export function formatTaunt(text: string): string {
   return `🗣 <b>Бот:</b> <i>${escapeHtml(text)}</i>`;
 }
 
+export function formatWorkTaunt(text: string): string {
+  return `💼 <b>Бот:</b> <i>${escapeHtml(text)}</i>`;
+}
+
 export function formatSurrender(
   heroNameRu: string,
   heroNameEn: string,

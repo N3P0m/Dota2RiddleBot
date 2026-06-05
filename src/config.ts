@@ -43,6 +43,17 @@ export const config = {
   insultsEnabled: process.env.INSULTS_ENABLED !== "false",
   insultMaxPool: Math.min(300, Math.max(50, Number(process.env.INSULT_MAX_POOL ?? "300"))),
   insultDailyBatch: Math.min(20, Math.max(5, Number(process.env.INSULT_DAILY_BATCH ?? "20"))),
+  floodTauntsEnabled: process.env.FLOOD_TAUNTS_ENABLED !== "false",
+  workHoursStart: Number(process.env.WORK_HOURS_START ?? "8"),
+  workHoursEnd: Number(process.env.WORK_HOURS_END ?? "16"),
+  floodWindowMinutes: Math.min(
+    60,
+    Math.max(10, Number(process.env.FLOOD_WINDOW_MINUTES ?? "30")),
+  ),
+  floodTauntsMaxPerHour: Math.min(
+    5,
+    Math.max(1, Number(process.env.FLOOD_TAUNTS_MAX_PER_HOUR ?? "2")),
+  ),
   titleEmoji: {
     creep: process.env.TITLE_EMOJI_CREEP,
     support: process.env.TITLE_EMOJI_SUPPORT,

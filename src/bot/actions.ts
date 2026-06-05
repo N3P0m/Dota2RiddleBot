@@ -1,6 +1,7 @@
 import type { Context } from "grammy";
 import type { GameService } from "../game/round.js";
 import type { InsultService } from "../game/insults.js";
+import type { FloodTauntService } from "../game/flood-taunts.js";
 import type { Repository } from "../db/repository.js";
 import { config } from "../config.js";
 import {
@@ -18,6 +19,7 @@ import {
   formatSurrender,
   formatWin,
   formatTaunt,
+  formatWorkTaunt,
   formatAchievementMessages,
   type LeaderboardPeriod,
 } from "./format.js";
@@ -66,10 +68,22 @@ export async function maybeReplyTaunt(
   await ctx.reply(formatTaunt(taunt), { parse_mode: "HTML" });
 }
 
+export async function maybeReplyFloodTaunt(
+  ctx: Context,
+  floodTaunts: FloodTauntService,
+  chatIdStr: string,
+): Promise<void> {
+  const ctxFlood = floodTaunts.onRoundStarted(chatIdStr);
+  const line = floodTaunts.rollFloodTaunt(chatIdStr, ctxFlood);
+  if (!line) return;
+  await ctx.reply(formatWorkTaunt(line), { parse_mode: "HTML" });
+}
+
 async function executeRoundStart(
   ctx: Context,
   game: GameService,
   insults: InsultService,
+  floodTaunts: FloodTauntService,
   mode: "text" | "emoji",
 ): Promise<void> {
   const cid = chatId(ctx);
@@ -131,6 +145,7 @@ async function executeRoundStart(
       true,
       keyboardDuringRound(),
     );
+    await maybeReplyFloodTaunt(ctx, floodTaunts, cid);
   } catch (err) {
     ticker.stop();
     console.error("riddle error:", err);
@@ -147,16 +162,18 @@ export async function executeRiddle(
   ctx: Context,
   game: GameService,
   insults: InsultService,
+  floodTaunts: FloodTauntService,
 ): Promise<void> {
-  await executeRoundStart(ctx, game, insults, "text");
+  await executeRoundStart(ctx, game, insults, floodTaunts, "text");
 }
 
 export async function executeEmoRiddle(
   ctx: Context,
   game: GameService,
   insults: InsultService,
+  floodTaunts: FloodTauntService,
 ): Promise<void> {
-  await executeRoundStart(ctx, game, insults, "emoji");
+  await executeRoundStart(ctx, game, insults, floodTaunts, "emoji");
 }
 
 export async function executeHint(

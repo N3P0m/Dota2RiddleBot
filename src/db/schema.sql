@@ -49,6 +49,29 @@ CREATE TABLE IF NOT EXISTS chat_taunt_history (
 
 CREATE INDEX IF NOT EXISTS idx_chat_taunt_history ON chat_taunt_history(chat_id, used_at DESC);
 
+CREATE TABLE IF NOT EXISTS work_taunts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  text TEXT NOT NULL UNIQUE,
+  time_slot TEXT NOT NULL DEFAULT 'any',
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_round_activity (
+  chat_id TEXT PRIMARY KEY,
+  round_starts TEXT NOT NULL DEFAULT '[]',
+  work_taunt_hour_key TEXT,
+  work_taunts_sent_hour INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS chat_work_taunt_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id TEXT NOT NULL,
+  work_taunt_id INTEGER NOT NULL,
+  used_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_work_taunt_history ON chat_work_taunt_history(chat_id, used_at DESC);
+
 CREATE TABLE IF NOT EXISTS round_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   chat_id TEXT NOT NULL,

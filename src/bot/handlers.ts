@@ -2,6 +2,7 @@ import { Bot, Context } from "grammy";
 import type { GameService } from "../game/round.js";
 import type { DailyNickService } from "../game/daily-nick.js";
 import type { InsultService } from "../game/insults.js";
+import type { FloodTauntService } from "../game/flood-taunts.js";
 import type { Repository } from "../db/repository.js";
 import { formatTodayRu } from "../game/nick-date.js";
 import type { AchievementId } from "../game/achievements.js";
@@ -158,6 +159,7 @@ export function registerHandlers(
   repo: Repository,
   dailyNick: DailyNickService,
   insults: InsultService,
+  floodTaunts: FloodTauntService,
 ): void {
   bot.command("help", async (ctx) => {
     await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
@@ -167,8 +169,8 @@ export function registerHandlers(
     await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
   });
 
-  bot.command("riddle", async (ctx) => executeRiddle(ctx, game, insults));
-  bot.command("emo_riddle", async (ctx) => executeEmoRiddle(ctx, game, insults));
+  bot.command("riddle", async (ctx) => executeRiddle(ctx, game, insults, floodTaunts));
+  bot.command("emo_riddle", async (ctx) => executeEmoRiddle(ctx, game, insults, floodTaunts));
   bot.command("hint", async (ctx) => executeHint(ctx, game, insults));
 
   bot.command("top", async (ctx) => {
@@ -241,12 +243,12 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.RIDDLE, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeRiddle(ctx, game, insults);
+    await executeRiddle(ctx, game, insults, floodTaunts);
   });
 
   bot.callbackQuery(CB.EMO_RIDDLE, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeEmoRiddle(ctx, game, insults);
+    await executeEmoRiddle(ctx, game, insults, floodTaunts);
   });
 
   bot.callbackQuery(CB.NICK_NEW, async (ctx) => {

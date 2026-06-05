@@ -5,6 +5,7 @@ import { Repository } from "./db/repository.js";
 import { GameService } from "./game/round.js";
 import { DailyNickService } from "./game/daily-nick.js";
 import { InsultService } from "./game/insults.js";
+import { FloodTauntService } from "./game/flood-taunts.js";
 import { registerBotCommands } from "./bot/commands.js";
 import { registerHandlers } from "./bot/handlers.js";
 import {
@@ -44,8 +45,18 @@ const insults = new InsultService(
   config.insultsEnabled,
 );
 
+const floodTaunts = new FloodTauntService(
+  repo,
+  config.nickTimeZone,
+  config.floodTauntsEnabled,
+  config.workHoursStart,
+  config.workHoursEnd,
+  config.floodWindowMinutes * 60 * 1000,
+  config.floodTauntsMaxPerHour,
+);
+
 const bot = new Bot(config.telegramBotToken);
-registerHandlers(bot, game, repo, dailyNick, insults);
+registerHandlers(bot, game, repo, dailyNick, insults, floodTaunts);
 
 await registerBotCommands(bot);
 
