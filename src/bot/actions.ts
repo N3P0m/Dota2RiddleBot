@@ -384,6 +384,7 @@ export async function replyWin(
       result.streakAfter,
       result.newTitle,
       result.previousTitle,
+      result.pointsAfter,
     ),
     {
       parse_mode: "HTML",
@@ -413,7 +414,7 @@ export function buildNickScoreLine(
   const score = repo.getUserScore(chatId, userId);
   if (!score || score.points === 0) return undefined;
   const title = getTitleByPoints(score.points);
-  let line = `${formatPoints(score.points)} · ${formatTitleLine(title)}`;
+  let line = `${formatPoints(score.points)} · ${formatTitleLine(title, score.points)}`;
   if (score.current_streak >= 3) {
     line += ` · серия ${score.current_streak}`;
   }

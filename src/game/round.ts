@@ -46,6 +46,7 @@ export type AnswerResult =
       isWinner: boolean;
       breakdown: RoundPointsResult;
       streakAfter: number;
+      pointsAfter: number;
       newTitle?: Title;
       previousTitle: Title;
       unlockedAchievements: AchievementId[];
@@ -226,6 +227,7 @@ export class GameService {
       isWinner: true,
       breakdown,
       streakAfter,
+      pointsAfter,
       newTitle,
       previousTitle: titleBefore,
       unlockedAchievements,

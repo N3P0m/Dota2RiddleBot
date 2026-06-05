@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { ACHIEVEMENTS, formatAchievementAnnounce } from "./achievements.js";
 
 describe("achievements catalog", () => {
-  it("has 12 achievements", () => {
-    assert.equal(ACHIEVEMENTS.length, 12);
+  it("has 13 achievements", () => {
+    assert.equal(ACHIEVEMENTS.length, 13);
   });
 
   it("all ids are unique", () => {

@@ -10,7 +10,15 @@ function required(name: string): string {
 
 export type RiddleSource = "preset" | "ai";
 
-export type TitleId = "creep" | "support" | "carry" | "core" | "divine";
+export type TitleId =
+  | "herald"
+  | "guardian"
+  | "crusader"
+  | "archon"
+  | "legend"
+  | "ancient"
+  | "divine"
+  | "immortal";
 
 export const config = {
   telegramBotToken: required("TELEGRAM_BOT_TOKEN"),
@@ -55,10 +63,13 @@ export const config = {
     Math.max(1, Number(process.env.FLOOD_TAUNTS_MAX_PER_HOUR ?? "2")),
   ),
   titleEmoji: {
-    creep: process.env.TITLE_EMOJI_CREEP,
-    support: process.env.TITLE_EMOJI_SUPPORT,
-    carry: process.env.TITLE_EMOJI_CARRY,
-    core: process.env.TITLE_EMOJI_CORE,
+    herald: process.env.TITLE_EMOJI_HERALD ?? process.env.TITLE_EMOJI_CREEP,
+    guardian: process.env.TITLE_EMOJI_GUARDIAN ?? process.env.TITLE_EMOJI_SUPPORT,
+    crusader: process.env.TITLE_EMOJI_CRUSADER ?? process.env.TITLE_EMOJI_CARRY,
+    archon: process.env.TITLE_EMOJI_ARCHON ?? process.env.TITLE_EMOJI_CORE,
+    legend: process.env.TITLE_EMOJI_LEGEND,
+    ancient: process.env.TITLE_EMOJI_ANCIENT,
     divine: process.env.TITLE_EMOJI_DIVINE,
+    immortal: process.env.TITLE_EMOJI_IMMORTAL,
   } satisfies Record<TitleId, string | undefined>,
 };

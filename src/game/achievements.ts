@@ -17,7 +17,8 @@ export type AchievementId =
   | "centurion"
   | "riddle_starter"
   | "all_roles"
-  | "divine_rank";
+  | "divine_rank"
+  | "immortal_rank";
 
 export type Achievement = {
   id: AchievementId;
@@ -37,7 +38,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "centurion", name: "Сотня", description: "100 побед в чате" },
   { id: "riddle_starter", name: "Загадыватель", description: "50 запущенных /riddle" },
   { id: "all_roles", name: "Универсал", description: "Победы на 5+ разных атрибутах" },
-  { id: "divine_rank", name: "Божество", description: "Достичь титула Божество" },
+  { id: "divine_rank", name: "Божество", description: "Достичь ранга Божество" },
+  { id: "immortal_rank", name: "Титан", description: "Достичь ранга Титан" },
 ];
 
 const ACHIEVEMENT_MAP = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
@@ -104,8 +106,12 @@ export function checkWinAchievements(
     tryUnlock("all_roles");
   }
 
-  if (getTitleByPoints(ctx.pointsAfter).id === "divine") {
+  const rankId = getTitleByPoints(ctx.pointsAfter).id;
+  if (rankId === "divine" || rankId === "immortal") {
     tryUnlock("divine_rank");
+  }
+  if (rankId === "immortal") {
+    tryUnlock("immortal_rank");
   }
 
   if (newly.length > 0) {

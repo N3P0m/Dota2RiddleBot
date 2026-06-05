@@ -11,6 +11,7 @@ import type { RoundPointsResult } from "../game/scoring.js";
 import { formatPoints, formatPointsBreakdown } from "../game/scoring.js";
 import { getHeroDifficulty } from "../game/hero-difficulty.js";
 import {
+  formatRankName,
   formatTitleBadge,
   formatTitleLine,
   getTitleByPoints,
@@ -51,7 +52,7 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 /help — справка
 
 <b>Очки:</b> зависят от скорости, подсказок, серии и сложности героя.
-<b>Титулы:</b> Крип → Саппорт → Керри → Кор → Божество.
+<b>Ранги:</b> как в Dota 2 по MMR-очкам (0 → 15 000): Рекрут 1 … Титан 5.
 <b>Достижения:</b> разблокируются за особые заслуги.
 
 <b>Как играть:</b>
@@ -164,6 +165,7 @@ export function formatWin(
   streakAfter: number,
   newTitle?: Title,
   previousTitle?: Title,
+  pointsAfter?: number,
 ): string {
   const lines = [
     `✅ <b>Верно!</b> ${escapeHtml(displayName)}`,
@@ -180,7 +182,7 @@ export function formatWin(
   if (newTitle && previousTitle) {
     lines.push(
       "",
-      `${formatTitleBadge(previousTitle)} → ${formatTitleBadge(newTitle)} Новый титул: <b>${escapeHtml(newTitle.name)}</b>!`,
+      `${formatTitleBadge(previousTitle)} → ${formatTitleBadge(newTitle)} Новый ранг: <b>${escapeHtml(pointsAfter !== undefined ? formatRankName(newTitle, pointsAfter) : newTitle.name)}</b>!`,
     );
   }
 
@@ -240,7 +242,7 @@ export function formatMe(
   const title = getTitleByPoints(row.points);
   let body =
     `👤 <b>${titlePrefix}${escapeHtml(displayName)}</b>\n` +
-    `${formatTitleLine(title)}\n` +
+    `${formatTitleLine(title, row.points)}\n` +
     `${formatPoints(row.points)} · ${row.wins} побед`;
 
   if (row.current_streak >= 3) {
