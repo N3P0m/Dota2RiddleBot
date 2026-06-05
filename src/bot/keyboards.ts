@@ -4,6 +4,9 @@ export const CB = {
   HINT: "hint",
   CANCEL: "cancel",
   TOP: "top",
+  TOP_WEEK: "top_week",
+  TOP_MONTH: "top_month",
+  TOP_ALL: "top_all",
   RIDDLE: "riddle",
   EMO_RIDDLE: "emo_riddle",
   NICK_NEW: "nick_new",
@@ -25,6 +28,14 @@ export function keyboardAfterWin(): InlineKeyboard {
     .text("🧩 Новая загадка", CB.RIDDLE)
     .row()
     .text("🎭 Эмо-загадка", CB.EMO_RIDDLE);
+}
+
+/** Под сообщением топа — переключатель периода. */
+export function keyboardLeaderboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Неделя", CB.TOP_WEEK)
+    .text("Месяц", CB.TOP_MONTH)
+    .text("Всё время", CB.TOP_ALL);
 }
 
 /** Под сообщением с дотаником. */

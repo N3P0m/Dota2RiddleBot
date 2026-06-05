@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS scores (
   display_name TEXT NOT NULL,
   points INTEGER NOT NULL DEFAULT 0,
   wins INTEGER NOT NULL DEFAULT 0,
+  current_streak INTEGER NOT NULL DEFAULT 0,
+  best_streak INTEGER NOT NULL DEFAULT 0,
+  riddles_started INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (chat_id, user_id)
 );
 
@@ -20,6 +23,42 @@ CREATE TABLE IF NOT EXISTS rounds (
   hints_used INTEGER NOT NULL DEFAULT 0,
   round_mode TEXT NOT NULL DEFAULT 'text',
   emo_skills TEXT
+);
+
+CREATE TABLE IF NOT EXISTS round_results (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  hero_id INTEGER NOT NULL,
+  points_earned INTEGER NOT NULL,
+  hints_used INTEGER NOT NULL DEFAULT 0,
+  elapsed_ms INTEGER NOT NULL,
+  difficulty_multiplier REAL NOT NULL DEFAULT 1.0,
+  streak_after INTEGER NOT NULL DEFAULT 0,
+  won_at INTEGER NOT NULL,
+  period_week TEXT NOT NULL,
+  period_month TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_round_results_chat_week ON round_results(chat_id, period_week);
+CREATE INDEX IF NOT EXISTS idx_round_results_chat_month ON round_results(chat_id, period_month);
+CREATE INDEX IF NOT EXISTS idx_round_results_user ON round_results(user_id, won_at DESC);
+
+CREATE TABLE IF NOT EXISTS user_achievements (
+  chat_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  achievement_id TEXT NOT NULL,
+  unlocked_at INTEGER NOT NULL,
+  PRIMARY KEY (chat_id, user_id, achievement_id)
+);
+
+CREATE TABLE IF NOT EXISTS weekly_titles (
+  chat_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  week_key TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (chat_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS daily_nicks (
@@ -56,6 +95,7 @@ CREATE TABLE IF NOT EXISTS nick_queues (
   user_id TEXT NOT NULL,
   nick_date TEXT NOT NULL,
   queue TEXT NOT NULL DEFAULT '[]',
+  bonus_rerolls INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (user_id, nick_date)
 );

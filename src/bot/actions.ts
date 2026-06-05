@@ -1,6 +1,13 @@
 import type { Context } from "grammy";
 import type { GameService } from "../game/round.js";
 import type { Repository } from "../db/repository.js";
+import { config } from "../config.js";
+import {
+  checkPeriodAchievements,
+  persistAchievements,
+} from "../game/achievements.js";
+import { monthKey, weekKey, formatWeekRange, formatMonthLabel } from "../game/periods.js";
+import { getTitleByPoints, formatTitleLine } from "../game/titles.js";
 import {
   formatEmoHint,
   formatEmoRiddle,
@@ -9,8 +16,10 @@ import {
   formatRiddle,
   formatSurrender,
   formatWin,
+  formatAchievementMessages,
+  type LeaderboardPeriod,
 } from "./format.js";
-import { keyboardAfterWin, keyboardDuringRound } from "./keyboards.js";
+import { keyboardAfterWin, keyboardDuringRound, keyboardLeaderboard } from "./keyboards.js";
 import {
   EMO_LOADING_STATUSES,
   HINT_LOADING_STATUSES,
@@ -74,7 +83,13 @@ async function executeRoundStart(
   );
 
   try {
-    const result = await game.startRound(cid, uid, mode);
+    const result = await game.startRound(
+      cid,
+      uid,
+      username(ctx),
+      displayName(ctx),
+      mode,
+    );
     ticker.stop();
 
     if (!result.ok) {
@@ -254,23 +269,125 @@ export async function executeCancel(
   return true;
 }
 
-export async function executeTop(ctx: Context, repo: Repository): Promise<void> {
-  const rows = repo.getLeaderboard(chatId(ctx));
-  await ctx.reply(formatLeaderboard(rows), { parse_mode: "HTML" });
+function resolvePeriod(period: LeaderboardPeriod): {
+  key?: string;
+  rangeLabel?: string;
+} {
+  const tz = config.nickTimeZone;
+  const now = new Date();
+  if (period === "week") {
+    const key = weekKey(now, tz);
+    return { key, rangeLabel: formatWeekRange(key, tz) };
+  }
+  if (period === "month") {
+    const key = monthKey(now, tz);
+    return { key, rangeLabel: formatMonthLabel(key, tz) };
+  }
+  return {};
+}
+
+export async function executeTop(
+  ctx: Context,
+  repo: Repository,
+  period: LeaderboardPeriod = "all",
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+  const { key, rangeLabel } = resolvePeriod(period);
+
+  if (period !== "all" && key) {
+    const periodAchievements = checkPeriodAchievements(
+      repo,
+      cid,
+      uid,
+      config.nickTimeZone,
+    );
+    persistAchievements(repo, cid, uid, periodAchievements);
+  }
+
+  if (period === "all") {
+    const rows = repo.getLeaderboard(cid);
+    await ctx.reply(formatLeaderboard(rows, "all"), {
+      parse_mode: "HTML",
+      reply_markup: keyboardLeaderboard(),
+    });
+    return;
+  }
+
+  const rows = repo.getLeaderboardForPeriod(cid, period, key!);
+  const pointsMap = new Map<string, number>();
+  for (const row of rows) {
+    const allTime = repo.getUserScore(cid, row.user_id);
+    if (allTime) pointsMap.set(row.user_id, allTime.points);
+  }
+
+  await ctx.reply(
+    formatLeaderboard(rows, period, rangeLabel, pointsMap),
+    { parse_mode: "HTML", reply_markup: keyboardLeaderboard() },
+  );
 }
 
 export async function replyWin(
   ctx: Context,
   heroNameRu: string,
   heroNameEn: string,
-  points: number,
+  result: Extract<
+    Awaited<ReturnType<GameService["checkAnswer"]>>,
+    { ok: true }
+  >,
   replyToMessageId?: number,
 ): Promise<void> {
-  await ctx.reply(formatWin(displayName(ctx), heroNameRu, heroNameEn, points), {
-    parse_mode: "HTML",
-    reply_markup: keyboardAfterWin(),
-    ...(replyToMessageId
-      ? { reply_parameters: { message_id: replyToMessageId } }
-      : {}),
-  });
+  await ctx.reply(
+    formatWin(
+      displayName(ctx),
+      heroNameRu,
+      heroNameEn,
+      result.breakdown,
+      result.streakAfter,
+      result.newTitle,
+      result.previousTitle,
+    ),
+    {
+      parse_mode: "HTML",
+      reply_markup: keyboardAfterWin(),
+      ...(replyToMessageId
+        ? { reply_parameters: { message_id: replyToMessageId } }
+        : {}),
+    },
+  );
+
+  if (config.achievementsAnnounce && result.unlockedAchievements.length > 0) {
+    const messages = formatAchievementMessages(
+      displayName(ctx),
+      result.unlockedAchievements,
+    );
+    for (const msg of messages) {
+      await ctx.reply(msg, { parse_mode: "HTML" });
+    }
+  }
+}
+
+export function buildNickScoreLine(
+  repo: Repository,
+  chatId: string,
+  userId: string,
+): string | undefined {
+  const score = repo.getUserScore(chatId, userId);
+  if (!score || score.points === 0) return undefined;
+  const title = getTitleByPoints(score.points);
+  let line = `${formatPoints(score.points)} · ${formatTitleLine(title)}`;
+  if (score.current_streak >= 3) {
+    line += ` · серия ${score.current_streak}`;
+  }
+  return line;
+}
+
+function formatPoints(points: number): string {
+  const n = Math.abs(points);
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return `${points} очков`;
+  if (mod10 === 1) return `${points} очко`;
+  if (mod10 >= 2 && mod10 <= 4) return `${points} очка`;
+  return `${points} очков`;
 }

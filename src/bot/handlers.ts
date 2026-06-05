@@ -3,6 +3,8 @@ import type { GameService } from "../game/round.js";
 import type { DailyNickService } from "../game/daily-nick.js";
 import type { Repository } from "../db/repository.js";
 import { formatTodayRu } from "../game/nick-date.js";
+import type { AchievementId } from "../game/achievements.js";
+import { getActiveWeeklyTitle } from "../game/weekly-title.js";
 import {
   chatId,
   displayName,
@@ -14,11 +16,14 @@ import {
   replyWin,
   userId,
   username,
+  buildNickScoreLine,
 } from "./actions.js";
 import {
   HELP_TEXT,
   formatDailyNick,
   formatMe,
+  formatAchievementsList,
+  type LeaderboardPeriod,
 } from "./format.js";
 import { CB, keyboardAfterNick, keyboardAfterWin } from "./keyboards.js";
 import {
@@ -36,12 +41,23 @@ function parseAnswerAttempt(text: string): string | null {
   return answer.length >= 2 ? answer : null;
 }
 
+function parseTopPeriod(text: string): LeaderboardPeriod {
+  const arg = text.trim().split(/\s+/)[1]?.toLowerCase();
+  if (arg === "week" || arg === "неделя") return "week";
+  if (arg === "month" || arg === "месяц") return "month";
+  return "all";
+}
+
 async function runNickCommand(
   ctx: Context,
   dailyNick: DailyNickService,
+  repo: Repository,
   forceNew: boolean,
 ): Promise<void> {
   const uid = userId(ctx);
+  const cid = chatId(ctx);
+  const weeklyPrefix = getActiveWeeklyTitle(repo, cid, uid);
+  const scoreLine = buildNickScoreLine(repo, cid, uid);
 
   if (!forceNew) {
     const cached = dailyNick.getTodayNick(uid);
@@ -53,6 +69,8 @@ async function runNickCommand(
           true,
           dailyNick.getPreviousNicks(uid),
           dailyNick.getStackRemaining(uid),
+          weeklyPrefix,
+          scoreLine,
         ),
         { parse_mode: "HTML", reply_markup: keyboardAfterNick() },
       );
@@ -114,6 +132,8 @@ async function runNickCommand(
         result.cached,
         result.previousNicks,
         result.stackRemaining,
+        weeklyPrefix,
+        scoreLine,
       ),
       true,
       keyboardAfterNick(),
@@ -147,18 +167,43 @@ export function registerHandlers(
   bot.command("riddle", async (ctx) => executeRiddle(ctx, game));
   bot.command("emo_riddle", async (ctx) => executeEmoRiddle(ctx, game));
   bot.command("hint", async (ctx) => executeHint(ctx, game));
-  bot.command("top", async (ctx) => executeTop(ctx, repo));
+
+  bot.command("top", async (ctx) => {
+    const period = parseTopPeriod(ctx.message?.text ?? "");
+    await executeTop(ctx, repo, period);
+  });
+
+  bot.command(["achievements", "ach"], async (ctx) => {
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    const unlocked = repo
+      .getUserAchievements(cid, uid)
+      .map((a) => a.achievement_id);
+    await ctx.reply(formatAchievementsList(unlocked as AchievementId[]), {
+      parse_mode: "HTML",
+    });
+  });
+
   bot.command("cancel", async (ctx) => executeCancel(ctx, game));
 
   bot.command("nick", async (ctx) => {
     const text = ctx.message?.text?.trim() ?? "";
     const forceNew = /\bnew\b/i.test(text);
-    await runNickCommand(ctx, dailyNick, forceNew);
+    await runNickCommand(ctx, dailyNick, repo, forceNew);
   });
 
   bot.command("me", async (ctx) => {
-    const row = repo.getUserScore(chatId(ctx), userId(ctx));
-    await ctx.reply(formatMe(row, displayName(ctx)), { parse_mode: "HTML" });
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    const row = repo.getUserScore(cid, uid);
+    const achievements = repo
+      .getUserAchievements(cid, uid)
+      .map((a) => a.achievement_id);
+    const weeklyPrefix = getActiveWeeklyTitle(repo, cid, uid);
+    await ctx.reply(
+      formatMe(row, displayName(ctx), achievements as AchievementId[], weeklyPrefix),
+      { parse_mode: "HTML" },
+    );
   });
 
   bot.callbackQuery(CB.HINT, async (ctx) => {
@@ -173,7 +218,22 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.TOP, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeTop(ctx, repo);
+    await executeTop(ctx, repo, "all");
+  });
+
+  bot.callbackQuery(CB.TOP_WEEK, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeTop(ctx, repo, "week");
+  });
+
+  bot.callbackQuery(CB.TOP_MONTH, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeTop(ctx, repo, "month");
+  });
+
+  bot.callbackQuery(CB.TOP_ALL, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeTop(ctx, repo, "all");
   });
 
   bot.callbackQuery(CB.RIDDLE, async (ctx) => {
@@ -188,7 +248,7 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.NICK_NEW, async (ctx) => {
     await ctx.answerCallbackQuery({ text: "Перекатываю…" });
-    await runNickCommand(ctx, dailyNick, true);
+    await runNickCommand(ctx, dailyNick, repo, true);
   });
 
   bot.on("message:text", async (ctx) => {
@@ -214,7 +274,7 @@ export function registerHandlers(
         ctx,
         result.hero.name_ru,
         result.hero.name_en,
-        result.points,
+        result,
         ctx.message.message_id,
       );
       return;

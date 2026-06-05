@@ -4,6 +4,8 @@ import {
   normalizeAnswer,
 } from "./fuzzy-match.js";
 
+export type HeroDifficulty = "easy" | "normal" | "hard" | "expert";
+
 export type Hero = {
   id: number;
   name_en: string;
@@ -11,6 +13,7 @@ export type Hero = {
   roles: string[];
   primary_attr: string;
   aliases: string[];
+  difficulty?: HeroDifficulty;
 };
 
 export { normalizeAnswer } from "./fuzzy-match.js";

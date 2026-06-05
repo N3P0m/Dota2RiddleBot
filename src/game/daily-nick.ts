@@ -33,7 +33,11 @@ export class DailyNickService {
   }
 
   getStackRemaining(userId: string): number {
-    return this.repo.getNickQueue(userId, todayKey(this.timeZone)).length;
+    const date = todayKey(this.timeZone);
+    return (
+      this.repo.getNickQueue(userId, date).length +
+      this.repo.getBonusRerolls(userId, date)
+    );
   }
 
   async getOrCreate(
@@ -59,7 +63,7 @@ export class DailyNickService {
       }
     }
 
-    const taken = await this.takeNextNick(userId, date);
+    const taken = await this.takeNextNick(userId, date, forceNew);
     if (!taken) {
       return { ok: false, reason: "generate_failed" };
     }
@@ -79,6 +83,7 @@ export class DailyNickService {
   private async takeNextNick(
     userId: string,
     nickDate: string,
+    forceNew = false,
   ): Promise<{
     nickname: string;
     stackRemaining: number;
@@ -86,6 +91,8 @@ export class DailyNickService {
   } | null> {
     let queue = this.repo.getNickQueue(userId, nickDate);
     let fromStack = queue.length > 0;
+    const usedBonus =
+      !fromStack && forceNew && this.repo.consumeBonusReroll(userId, nickDate);
 
     if (queue.length === 0) {
       const exclude = new Set([
@@ -109,6 +116,11 @@ export class DailyNickService {
     if (!nickname) return null;
 
     this.repo.setNickQueue(userId, nickDate, rest);
-    return { nickname, stackRemaining: rest.length, fromStack };
+    const bonusLeft = this.repo.getBonusRerolls(userId, nickDate);
+    return {
+      nickname,
+      stackRemaining: rest.length + bonusLeft,
+      fromStack: fromStack || usedBonus,
+    };
   }
 }

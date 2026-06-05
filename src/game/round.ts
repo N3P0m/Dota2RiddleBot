@@ -1,5 +1,8 @@
 import type { GeminiClient } from "../ai/gemini.js";
 import type { Repository } from "../db/repository.js";
+import type { ScoringConfig } from "./scoring.js";
+import type { AchievementId } from "./achievements.js";
+import type { Title } from "./titles.js";
 import {
   formatEmoHintFromSkills,
   parseEmoSkills,
@@ -16,6 +19,14 @@ import {
 import { heroes } from "../heroes/match.js";
 import { pickHeroForSession } from "../heroes/pick.js";
 import type { RiddleSource } from "../config.js";
+import { calculateRoundPoints, type RoundPointsResult } from "./scoring.js";
+import { getHeroDifficultyMultiplier } from "./hero-difficulty.js";
+import { getTitleByPoints } from "./titles.js";
+import { monthKey, weekKey } from "./periods.js";
+import {
+  checkWinAchievements,
+  persistAchievements,
+} from "./achievements.js";
 
 export type StartRoundResult =
   | {
@@ -28,7 +39,17 @@ export type StartRoundResult =
   | { ok: false; reason: "active_round" };
 
 export type AnswerResult =
-  | { ok: true; hero: Hero; points: number; isWinner: boolean }
+  | {
+      ok: true;
+      hero: Hero;
+      points: number;
+      isWinner: boolean;
+      breakdown: RoundPointsResult;
+      streakAfter: number;
+      newTitle?: Title;
+      previousTitle: Title;
+      unlockedAchievements: AchievementId[];
+    }
   | { ok: false; reason: "no_round" | "already_won" | "wrong" };
 
 export type HintResult =
@@ -43,14 +64,17 @@ export class GameService {
   constructor(
     private repo: Repository,
     private gemini: GeminiClient,
-    private pointsPerWin: number,
+    private scoringConfig: ScoringConfig,
     private riddleSource: RiddleSource,
     private showAnswer: boolean,
+    private timeZone: string,
   ) {}
 
   async startRound(
     chatId: string,
     userId: string,
+    username: string | null,
+    displayName: string,
     mode: RoundMode = "text",
   ): Promise<StartRoundResult> {
     const existing = this.repo.getRound(chatId);
@@ -99,6 +123,7 @@ export class GameService {
       mode,
       emoSkillsJson,
     );
+    this.repo.incrementRiddlesStarted(chatId, userId, username, displayName);
 
     const answerLabel = `${hero.name_ru} / ${hero.name_en}`;
     return {
@@ -137,20 +162,73 @@ export class GameService {
       return { ok: false, reason: "wrong" };
     }
 
+    const elapsedMs = Date.now() - round.started_at;
+    const streakBefore = this.repo.getCurrentStreak(chatId, userId);
+    const pointsBefore =
+      this.repo.getUserScore(chatId, userId)?.points ?? 0;
+    const titleBefore = getTitleByPoints(pointsBefore);
+
+    const breakdown = calculateRoundPoints(
+      {
+        hintsUsed: round.hints_used,
+        elapsedMs,
+        difficultyMultiplier: getHeroDifficultyMultiplier(hero),
+        streakBefore,
+      },
+      this.scoringConfig,
+    );
+
     this.repo.addWin(
       chatId,
       userId,
       username,
       displayName,
-      this.pointsPerWin,
+      breakdown.total,
     );
     this.repo.finishRound(chatId, userId);
+
+    const streakAfter = this.repo.updateStreaks(chatId, userId);
+    const now = new Date();
+    this.repo.recordRoundResult({
+      chatId,
+      userId,
+      heroId: hero.id,
+      pointsEarned: breakdown.total,
+      hintsUsed: round.hints_used,
+      elapsedMs,
+      difficultyMultiplier: breakdown.difficultyMultiplier,
+      streakAfter,
+      periodWeek: weekKey(now, this.timeZone),
+      periodMonth: monthKey(now, this.timeZone),
+    });
+
+    const pointsAfter = pointsBefore + breakdown.total;
+    const unlockedAchievements = checkWinAchievements(this.repo, {
+      chatId,
+      userId,
+      hero,
+      hintsUsed: round.hints_used,
+      elapsedMs,
+      streakAfter,
+      pointsAfter,
+      breakdown,
+    });
+    persistAchievements(this.repo, chatId, userId, unlockedAchievements);
+
+    const titleAfter = getTitleByPoints(pointsAfter);
+    const newTitle =
+      titleAfter.id !== titleBefore.id ? titleAfter : undefined;
 
     return {
       ok: true,
       hero,
-      points: this.pointsPerWin,
+      points: breakdown.total,
       isWinner: true,
+      breakdown,
+      streakAfter,
+      newTitle,
+      previousTitle: titleBefore,
+      unlockedAchievements,
     };
   }
 
@@ -190,7 +268,6 @@ export class GameService {
     return { ok: true, hint, hintNumber };
   }
 
-  /** Сдача: показать героя, оставить в истории чата (не выпадет снова). */
   surrenderRound(chatId: string): SurrenderResult {
     const round = this.repo.getActiveRound(chatId);
     if (!round) {

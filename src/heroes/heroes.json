@@ -15,7 +15,8 @@
       "antimage",
       "am",
       "ам"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 2,
@@ -31,7 +32,8 @@
     "aliases": [
       "axe",
       "акс"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 3,
@@ -47,7 +49,8 @@
     "aliases": [
       "bane",
       "бейн"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 4,
@@ -69,7 +72,8 @@
       "bs",
       "бс",
       "кровопий"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 5,
@@ -88,7 +92,8 @@
       "cm",
       "кристал",
       "кристалмейден"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 6,
@@ -104,7 +109,8 @@
       "drow ranger",
       "дровка",
       "drowranger"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 7,
@@ -120,7 +126,8 @@
     "aliases": [
       "earthshaker",
       "шейкер"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 8,
@@ -135,7 +142,8 @@
     "aliases": [
       "juggernaut",
       "джаггер"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 9,
@@ -152,7 +160,8 @@
     "aliases": [
       "mirana",
       "мирана"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 10,
@@ -169,7 +178,8 @@
     "aliases": [
       "morphling",
       "морфлинг"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 11,
@@ -187,7 +197,8 @@
       "шадоуфиенд",
       "sf",
       "невермор"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 12,
@@ -205,7 +216,8 @@
       "пл",
       "phantomlancer",
       "pl"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 13,
@@ -221,7 +233,8 @@
     "aliases": [
       "puck",
       "пак"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 14,
@@ -238,7 +251,8 @@
       "pudge",
       "пудж",
       "мясник"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 15,
@@ -254,7 +268,8 @@
     "aliases": [
       "razor",
       "рейзор"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 16,
@@ -274,7 +289,8 @@
       "sandking",
       "сандкинг",
       "ск"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 17,
@@ -293,7 +309,8 @@
       "шторм",
       "stormspirit",
       "storm"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 18,
@@ -310,7 +327,8 @@
     "aliases": [
       "sven",
       "свен"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 19,
@@ -328,7 +346,8 @@
     "aliases": [
       "tiny",
       "тайни"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 20,
@@ -346,7 +365,8 @@
       "vengeful spirit",
       "венга",
       "vengefulspirit"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 21,
@@ -365,7 +385,8 @@
       "виндранер",
       "винда",
       "wr"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 22,
@@ -380,7 +401,8 @@
       "zeus",
       "зевс",
       "zuus"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 23,
@@ -398,7 +420,8 @@
     "aliases": [
       "kunkka",
       "кункка"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 25,
@@ -414,7 +437,8 @@
     "aliases": [
       "lina",
       "лина"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 26,
@@ -430,7 +454,8 @@
     "aliases": [
       "lion",
       "лайон"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 27,
@@ -448,7 +473,8 @@
       "shadow shaman",
       "шаман",
       "shadowshaman"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 28,
@@ -465,7 +491,8 @@
     "aliases": [
       "slardar",
       "слардар"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 29,
@@ -482,7 +509,8 @@
     "aliases": [
       "tidehunter",
       "тайдхунтер"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 30,
@@ -500,7 +528,8 @@
       "witchdoctor",
       "wd",
       "доктор"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 31,
@@ -514,7 +543,8 @@
     "aliases": [
       "lich",
       "лич"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 32,
@@ -529,7 +559,8 @@
     "aliases": [
       "riki",
       "рики"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 33,
@@ -544,7 +575,8 @@
     "aliases": [
       "enigma",
       "энигма"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 34,
@@ -559,7 +591,8 @@
     "aliases": [
       "tinker",
       "тинкер"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 35,
@@ -573,7 +606,8 @@
     "aliases": [
       "sniper",
       "снайпер"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 36,
@@ -589,7 +623,8 @@
     "aliases": [
       "necrophos",
       "некрофос"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 37,
@@ -604,7 +639,8 @@
     "aliases": [
       "warlock",
       "варлок"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 38,
@@ -620,7 +656,8 @@
     "aliases": [
       "beastmaster",
       "бистмастер"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 39,
@@ -638,7 +675,8 @@
       "queenofpain",
       "qop",
       "квоп"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 40,
@@ -655,7 +693,8 @@
     "aliases": [
       "venomancer",
       "веномансер"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 41,
@@ -674,7 +713,8 @@
       "войд",
       "facelessvoid",
       "void"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 42,
@@ -694,7 +734,8 @@
       "wraithking",
       "скелет",
       "skeleton king"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 43,
@@ -712,7 +753,8 @@
       "дп",
       "deathprophet",
       "dp"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 44,
@@ -728,7 +770,8 @@
       "па",
       "phantomassassin",
       "pa"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 45,
@@ -742,7 +785,8 @@
     "aliases": [
       "pugna",
       "пугна"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 46,
@@ -758,7 +802,8 @@
       "та",
       "templarassassin",
       "ta"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 47,
@@ -774,7 +819,8 @@
     "aliases": [
       "viper",
       "вайпер"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 48,
@@ -789,7 +835,8 @@
     "aliases": [
       "luna",
       "луна"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 49,
@@ -808,7 +855,8 @@
       "dragon knight",
       "дк",
       "dragonknight"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 50,
@@ -823,7 +871,8 @@
     "aliases": [
       "dazzle",
       "дазл"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 51,
@@ -841,7 +890,8 @@
       "клокерк",
       "клок",
       "clock"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 52,
@@ -857,7 +907,8 @@
     "primary_attr": "int",
     "aliases": [
       "leshrac"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 53,
@@ -877,7 +928,8 @@
       "фур",
       "np",
       "пророк"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 54,
@@ -896,7 +948,8 @@
       "найкс",
       "naix",
       "лайф"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 55,
@@ -915,7 +968,8 @@
       "дарксир",
       "сир",
       "seer"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 56,
@@ -930,7 +984,8 @@
     "aliases": [
       "clinkz",
       "клинкз"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 57,
@@ -947,7 +1002,8 @@
       "омник",
       "омни",
       "omni"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 58,
@@ -964,7 +1020,8 @@
       "enchantress",
       "энча",
       "encha"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 59,
@@ -979,7 +1036,8 @@
     "aliases": [
       "huskar",
       "хускар"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 60,
@@ -999,7 +1057,8 @@
       "nightstalker",
       "ns",
       "сталкер"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 61,
@@ -1016,7 +1075,8 @@
       "broodmother",
       "бруда",
       "brood"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 62,
@@ -1033,7 +1093,8 @@
       "bountyhunter",
       "bh",
       "гача"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 63,
@@ -1047,7 +1108,8 @@
     "aliases": [
       "weaver",
       "вивер"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 64,
@@ -1063,7 +1125,8 @@
     "aliases": [
       "jakiro",
       "жакиро"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 65,
@@ -1078,7 +1141,8 @@
     "aliases": [
       "batrider",
       "батрайдер"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 66,
@@ -1092,7 +1156,8 @@
     "aliases": [
       "chen",
       "чен"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 67,
@@ -1108,7 +1173,8 @@
       "spectre",
       "спектра",
       "spec"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 68,
@@ -1126,7 +1192,8 @@
       "ancientapparition",
       "aa",
       "калдун"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 69,
@@ -1143,7 +1210,8 @@
     "aliases": [
       "doom",
       "дум"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 70,
@@ -1157,7 +1225,8 @@
     "primary_attr": "agi",
     "aliases": [
       "ursa"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 71,
@@ -1177,7 +1246,8 @@
       "spiritbreaker",
       "баратрум",
       "charger"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 72,
@@ -1193,7 +1263,8 @@
       "gyrocopter",
       "гиро",
       "gyro"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 73,
@@ -1211,7 +1282,8 @@
     "aliases": [
       "alchemist",
       "алхимик"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 74,
@@ -1230,7 +1302,8 @@
       "инвокер",
       "инв",
       "инвок"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 75,
@@ -1247,7 +1320,8 @@
     "aliases": [
       "silencer",
       "сайленсер"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 76,
@@ -1265,7 +1339,8 @@
       "outworlddestroyer",
       "od",
       "outworld"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 77,
@@ -1280,7 +1355,8 @@
     "primary_attr": "str",
     "aliases": [
       "lycan"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 78,
@@ -1298,7 +1374,8 @@
       "brewmaster",
       "панда",
       "panda"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 79,
@@ -1316,7 +1393,8 @@
       "сд",
       "shadowdemon",
       "sd"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 80,
@@ -1336,7 +1414,8 @@
       "друид",
       "ld",
       "медведь"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 81,
@@ -1356,7 +1435,8 @@
       "chaosknight",
       "ck",
       "хаос"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 82,
@@ -1375,7 +1455,8 @@
       "meepo",
       "мипо",
       "мипы"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 83,
@@ -1393,7 +1474,8 @@
       "treant protector",
       "треант",
       "treantprotector"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 84,
@@ -1411,7 +1493,8 @@
       "ogre magi",
       "огр",
       "ogremagi"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 85,
@@ -1427,7 +1510,8 @@
     "aliases": [
       "undying",
       "айо"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 86,
@@ -1443,7 +1527,8 @@
       "rubick",
       "рубик",
       "руб"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 87,
@@ -1460,7 +1545,8 @@
       "disruptor",
       "дизраптор",
       "диз"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 88,
@@ -1478,7 +1564,8 @@
       "никс",
       "nyxassassin",
       "nyx"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 89,
@@ -1498,7 +1585,8 @@
       "нага",
       "nagasiren",
       "naga"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 90,
@@ -1516,7 +1604,8 @@
       "keeperofthelight",
       "ezalor",
       "котёл"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 91,
@@ -1532,7 +1621,8 @@
       "io",
       "висп",
       "wisp"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 92,
@@ -1549,7 +1639,8 @@
     "aliases": [
       "visage",
       "висаж"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 93,
@@ -1566,7 +1657,8 @@
       "slark",
       "сларк",
       "рыба"
-    ]
+    ],
+    "difficulty": "easy"
   },
   {
     "id": 94,
@@ -1582,7 +1674,8 @@
       "medusa",
       "медуза",
       "горгона"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 95,
@@ -1599,7 +1692,8 @@
       "troll warlord",
       "тролль",
       "trollwarlord"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 96,
@@ -1619,7 +1713,8 @@
       "centaurwarrunner",
       "кент",
       "cent"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 97,
@@ -1636,7 +1731,8 @@
       "magnus",
       "магнус",
       "маг"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 98,
@@ -1652,7 +1748,8 @@
       "timbersaw",
       "тимбер",
       "тимбр"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 99,
@@ -1668,7 +1765,8 @@
     "aliases": [
       "bristleback",
       "бристл"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 100,
@@ -1683,7 +1781,8 @@
     "aliases": [
       "tusk",
       "туск"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 101,
@@ -1700,7 +1799,8 @@
       "скай",
       "skywrathmage",
       "sky"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 102,
@@ -1715,7 +1815,8 @@
     "aliases": [
       "abaddon",
       "абаддон"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 103,
@@ -1733,7 +1834,8 @@
       "титан",
       "eldertitan",
       "et"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 104,
@@ -1752,7 +1854,8 @@
       "легион",
       "legioncommander",
       "lc"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 105,
@@ -1765,7 +1868,8 @@
     "primary_attr": "all",
     "aliases": [
       "techies"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 106,
@@ -1784,7 +1888,8 @@
       "эмбер",
       "emberspirit",
       "ember"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 107,
@@ -1804,7 +1909,8 @@
       "earthspirit",
       "эртспирит",
       "эрт"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 108,
@@ -1823,7 +1929,8 @@
       "андерлорд",
       "питлорд",
       "pitlord"
-    ]
+    ],
+    "difficulty": "normal"
   },
   {
     "id": 109,
@@ -1839,7 +1946,8 @@
       "terrorblade",
       "тб",
       "tb"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 110,
@@ -1856,7 +1964,8 @@
     "aliases": [
       "phoenix",
       "феникс"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 111,
@@ -1872,7 +1981,8 @@
     "aliases": [
       "oracle",
       "оракул"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 112,
@@ -1889,7 +1999,8 @@
       "виверна",
       "winterwyvern",
       "ww"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 113,
@@ -1905,7 +2016,8 @@
       "arc warden",
       "арк",
       "arcwarden"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 114,
@@ -1924,7 +2036,8 @@
       "monkeyking",
       "mk",
       "обезьяна"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 119,
@@ -1942,7 +2055,8 @@
       "виллоу",
       "darkwillow",
       "willow"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 120,
@@ -1961,7 +2075,8 @@
       "pangolier",
       "панго",
       "pango"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 121,
@@ -1978,7 +2093,8 @@
       "grimstroke",
       "грим",
       "grim"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 123,
@@ -1995,7 +2111,8 @@
       "hoodwink",
       "худвинк",
       "белка"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 126,
@@ -2011,7 +2128,8 @@
     "aliases": [
       "void spirit",
       "voidspirit"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 128,
@@ -2028,7 +2146,8 @@
       "snapfire",
       "снап",
       "бабка"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 129,
@@ -2044,7 +2163,8 @@
     "aliases": [
       "mars",
       "марс"
-    ]
+    ],
+    "difficulty": "hard"
   },
   {
     "id": 131,
@@ -2062,7 +2182,8 @@
       "рингмастер",
       "ринг",
       "циркач"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 135,
@@ -2078,7 +2199,8 @@
       "дб",
       "db",
       "заря"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 136,
@@ -2095,7 +2217,8 @@
     "aliases": [
       "marci",
       "марси"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 137,
@@ -2112,7 +2235,8 @@
       "зверь",
       "primalbeast",
       "beast"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 138,
@@ -2127,7 +2251,8 @@
     "aliases": [
       "muerta",
       "муэрта"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 145,
@@ -2142,7 +2267,8 @@
     "aliases": [
       "kez",
       "кез"
-    ]
+    ],
+    "difficulty": "expert"
   },
   {
     "id": 155,
@@ -2157,6 +2283,7 @@
     "aliases": [
       "largo",
       "ларго"
-    ]
+    ],
+    "difficulty": "expert"
   }
 ]
