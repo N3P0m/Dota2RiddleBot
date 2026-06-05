@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { heroes } from "../heroes/match.js";
 import { todayKey } from "../game/nick-date.js";
+import { INSULTS_SEED } from "../game/insults-seed.js";
 import { readFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -40,6 +41,8 @@ export type RoundRow = {
   round_mode: string;
   emo_skills: string | null;
   hinted_skills: string;
+  wrong_guesses: number;
+  taunts_sent: number;
 };
 
 export type UserAchievementRow = {
@@ -54,7 +57,7 @@ export type WeeklyTitleRow = {
 };
 
 const ROUND_COLUMNS =
-  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills, hinted_skills";
+  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills, hinted_skills, wrong_guesses, taunts_sent";
 
 const SCORE_COLUMNS =
   "chat_id, user_id, username, display_name, points, wins, current_streak, best_streak, riddles_started";
@@ -99,6 +102,16 @@ export class Repository {
     if (!roundNames.has("hinted_skills")) {
       this.db.exec(
         `ALTER TABLE rounds ADD COLUMN hinted_skills TEXT NOT NULL DEFAULT '[]'`,
+      );
+    }
+    if (!roundNames.has("wrong_guesses")) {
+      this.db.exec(
+        `ALTER TABLE rounds ADD COLUMN wrong_guesses INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+    if (!roundNames.has("taunts_sent")) {
+      this.db.exec(
+        `ALTER TABLE rounds ADD COLUMN taunts_sent INTEGER NOT NULL DEFAULT 0`,
       );
     }
 
@@ -188,7 +201,27 @@ export class Repository {
         hero_ids TEXT NOT NULL DEFAULT '[]',
         updated_at INTEGER NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS insults (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL UNIQUE,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS insult_refill_log (
+        refill_date TEXT PRIMARY KEY,
+        added_count INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS chat_taunt_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL,
+        insult_id INTEGER NOT NULL,
+        used_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_chat_taunt_history ON chat_taunt_history(chat_id, used_at DESC);
     `);
+
+    this.seedInsultsIfEmpty();
 
     const nickQueueCols = this.db
       .prepare(`PRAGMA table_info(nick_queues)`)
@@ -282,8 +315,8 @@ export class Repository {
     const variantsJson = JSON.stringify(answerVariants);
     this.db
       .prepare(
-        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills, hinted_skills)
-         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, '[]')
+        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills, hinted_skills, wrong_guesses, taunts_sent)
+         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, '[]', 0, 0)
          ON CONFLICT(chat_id) DO UPDATE SET
            hero_id = excluded.hero_id,
            started_by = excluded.started_by,
@@ -294,7 +327,9 @@ export class Repository {
            winner_user_id = NULL,
            round_mode = excluded.round_mode,
            emo_skills = excluded.emo_skills,
-           hinted_skills = '[]'`,
+           hinted_skills = '[]',
+           wrong_guesses = 0,
+           taunts_sent = 0`,
       )
       .run(
         chatId,
@@ -899,6 +934,129 @@ export class Repository {
     this.db
       .prepare(`DELETE FROM chat_riddle_history WHERE chat_id = ?`)
       .run(chatId);
+  }
+
+  private seedInsultsIfEmpty(): void {
+    const now = Date.now();
+    const stmt = this.db.prepare(
+      `INSERT OR IGNORE INTO insults (text, created_at) VALUES (?, ?)`,
+    );
+    let added = 0;
+    for (const text of INSULTS_SEED) {
+      const r = stmt.run(text, now);
+      if (r.changes > 0) added++;
+    }
+    if (added > 0) {
+      console.log(`[Insult] Seed sync: +${added} (total seed ${INSULTS_SEED.length})`);
+    }
+  }
+
+  countInsults(): number {
+    const row = this.db
+      .prepare(`SELECT COUNT(*) AS c FROM insults`)
+      .get() as { c: number };
+    return row.c;
+  }
+
+  getAllInsultTexts(): string[] {
+    return (
+      this.db.prepare(`SELECT text FROM insults ORDER BY id`).all() as {
+        text: string;
+      }[]
+    ).map((r) => r.text);
+  }
+
+  addInsults(texts: string[]): number {
+    const now = Date.now();
+    const stmt = this.db.prepare(
+      `INSERT OR IGNORE INTO insults (text, created_at) VALUES (?, ?)`,
+    );
+    let added = 0;
+    for (const text of texts) {
+      const r = stmt.run(text.trim(), now);
+      if (r.changes > 0) added++;
+    }
+    return added;
+  }
+
+  hasInsultRefillToday(refillDate: string): boolean {
+    return !!this.db
+      .prepare(`SELECT 1 FROM insult_refill_log WHERE refill_date = ?`)
+      .get(refillDate);
+  }
+
+  markInsultRefillToday(refillDate: string, addedCount: number): void {
+    this.db
+      .prepare(
+        `INSERT INTO insult_refill_log (refill_date, added_count, created_at)
+         VALUES (?, ?, ?)
+         ON CONFLICT(refill_date) DO UPDATE SET
+           added_count = excluded.added_count,
+           created_at = excluded.created_at`,
+      )
+      .run(refillDate, addedCount, Date.now());
+  }
+
+  pickRandomInsult(chatId: string): string | null {
+    const recent = this.db
+      .prepare(
+        `SELECT insult_id FROM chat_taunt_history
+         WHERE chat_id = ? ORDER BY used_at DESC LIMIT 8`,
+      )
+      .all(chatId) as { insult_id: number }[];
+    const excludeIds = recent.map((r) => r.insult_id);
+
+    let row: { id: number; text: string } | undefined;
+    if (excludeIds.length > 0) {
+      const placeholders = excludeIds.map(() => "?").join(",");
+      row = this.db
+        .prepare(
+          `SELECT id, text FROM insults
+           WHERE id NOT IN (${placeholders})
+           ORDER BY RANDOM() LIMIT 1`,
+        )
+        .get(...excludeIds) as { id: number; text: string } | undefined;
+    }
+    if (!row) {
+      row = this.db
+        .prepare(`SELECT id, text FROM insults ORDER BY RANDOM() LIMIT 1`)
+        .get() as { id: number; text: string } | undefined;
+    }
+    if (!row) return null;
+
+    this.db
+      .prepare(
+        `INSERT INTO chat_taunt_history (chat_id, insult_id, used_at) VALUES (?, ?, ?)`,
+      )
+      .run(chatId, row.id, Date.now());
+    return row.text;
+  }
+
+  incrementWrongGuesses(chatId: string): void {
+    this.db
+      .prepare(
+        `UPDATE rounds SET wrong_guesses = wrong_guesses + 1 WHERE chat_id = ? AND winner_user_id IS NULL`,
+      )
+      .run(chatId);
+  }
+
+  incrementRoundTaunts(chatId: string): void {
+    this.db
+      .prepare(`UPDATE rounds SET taunts_sent = taunts_sent + 1 WHERE chat_id = ?`)
+      .run(chatId);
+  }
+
+  getTauntContext(chatId: string): {
+    wrongGuesses: number;
+    hintsUsed: number;
+    tauntsSent: number;
+  } {
+    const round = this.getActiveRound(chatId);
+    return {
+      wrongGuesses: round?.wrong_guesses ?? 0,
+      hintsUsed: round?.hints_used ?? 0,
+      tauntsSent: round?.taunts_sent ?? 0,
+    };
   }
 
   close(): void {

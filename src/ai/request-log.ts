@@ -1,7 +1,7 @@
 const SEP = "─".repeat(56);
 
 export function logGeminiRequest(
-  kind: "riddle" | "hint" | "nick" | "emo_riddle",
+  kind: "riddle" | "hint" | "nick" | "emo_riddle" | "insult",
   model: string,
   prompt: string,
   meta?: Record<string, unknown>,
@@ -19,7 +19,7 @@ export function logGeminiRequest(
 }
 
 export function logGeminiResponse(
-  kind: "riddle" | "hint" | "nick" | "emo_riddle",
+  kind: "riddle" | "hint" | "nick" | "emo_riddle" | "insult",
   raw: string | undefined,
   ms: number,
   extra?: Record<string, unknown>,

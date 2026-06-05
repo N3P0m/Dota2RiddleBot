@@ -4,6 +4,7 @@ import { GeminiClient } from "./ai/gemini.js";
 import { Repository } from "./db/repository.js";
 import { GameService } from "./game/round.js";
 import { DailyNickService } from "./game/daily-nick.js";
+import { InsultService } from "./game/insults.js";
 import { registerBotCommands } from "./bot/commands.js";
 import { registerHandlers } from "./bot/handlers.js";
 import {
@@ -34,8 +35,17 @@ const dailyNick = new DailyNickService(
   config.nickStackSize,
 );
 
+const insults = new InsultService(
+  repo,
+  gemini,
+  config.nickTimeZone,
+  config.insultMaxPool,
+  config.insultDailyBatch,
+  config.insultsEnabled,
+);
+
 const bot = new Bot(config.telegramBotToken);
-registerHandlers(bot, game, repo, dailyNick);
+registerHandlers(bot, game, repo, dailyNick, insults);
 
 await registerBotCommands(bot);
 

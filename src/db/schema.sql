@@ -23,8 +23,31 @@ CREATE TABLE IF NOT EXISTS rounds (
   hints_used INTEGER NOT NULL DEFAULT 0,
   round_mode TEXT NOT NULL DEFAULT 'text',
   emo_skills TEXT,
-  hinted_skills TEXT NOT NULL DEFAULT '[]'
+  hinted_skills TEXT NOT NULL DEFAULT '[]',
+  wrong_guesses INTEGER NOT NULL DEFAULT 0,
+  taunts_sent INTEGER NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS insults (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  text TEXT NOT NULL UNIQUE,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS insult_refill_log (
+  refill_date TEXT PRIMARY KEY,
+  added_count INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS chat_taunt_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id TEXT NOT NULL,
+  insult_id INTEGER NOT NULL,
+  used_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_taunt_history ON chat_taunt_history(chat_id, used_at DESC);
 
 CREATE TABLE IF NOT EXISTS round_results (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

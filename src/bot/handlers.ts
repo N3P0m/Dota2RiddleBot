@@ -1,6 +1,7 @@
 import { Bot, Context } from "grammy";
 import type { GameService } from "../game/round.js";
 import type { DailyNickService } from "../game/daily-nick.js";
+import type { InsultService } from "../game/insults.js";
 import type { Repository } from "../db/repository.js";
 import { formatTodayRu } from "../game/nick-date.js";
 import type { AchievementId } from "../game/achievements.js";
@@ -17,6 +18,7 @@ import {
   userId,
   username,
   buildNickScoreLine,
+  maybeReplyTaunt,
 } from "./actions.js";
 import {
   HELP_TEXT,
@@ -155,6 +157,7 @@ export function registerHandlers(
   game: GameService,
   repo: Repository,
   dailyNick: DailyNickService,
+  insults: InsultService,
 ): void {
   bot.command("help", async (ctx) => {
     await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
@@ -164,9 +167,9 @@ export function registerHandlers(
     await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
   });
 
-  bot.command("riddle", async (ctx) => executeRiddle(ctx, game));
-  bot.command("emo_riddle", async (ctx) => executeEmoRiddle(ctx, game));
-  bot.command("hint", async (ctx) => executeHint(ctx, game));
+  bot.command("riddle", async (ctx) => executeRiddle(ctx, game, insults));
+  bot.command("emo_riddle", async (ctx) => executeEmoRiddle(ctx, game, insults));
+  bot.command("hint", async (ctx) => executeHint(ctx, game, insults));
 
   bot.command("top", async (ctx) => {
     const period = parseTopPeriod(ctx.message?.text ?? "");
@@ -208,7 +211,7 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.HINT, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeHint(ctx, game);
+    await executeHint(ctx, game, insults);
   });
 
   bot.callbackQuery(CB.CANCEL, async (ctx) => {
@@ -238,12 +241,12 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.RIDDLE, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeRiddle(ctx, game);
+    await executeRiddle(ctx, game, insults);
   });
 
   bot.callbackQuery(CB.EMO_RIDDLE, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeEmoRiddle(ctx, game);
+    await executeEmoRiddle(ctx, game, insults);
   });
 
   bot.callbackQuery(CB.NICK_NEW, async (ctx) => {
@@ -270,13 +273,13 @@ export function registerHandlers(
     );
 
     if (result.ok) {
-      await replyWin(
-        ctx,
-        result.hero.name_ru,
-        result.hero.name_en,
-        result,
-        ctx.message.message_id,
-      );
+      await replyWin(ctx, result, ctx.message.message_id);
+      return;
+    }
+
+    if (result.reason === "wrong") {
+      const ctxAfterWrong = insults.recordWrongGuess(cid);
+      await maybeReplyTaunt(ctx, insults, cid, ctxAfterWrong);
       return;
     }
 

@@ -40,6 +40,9 @@ export const config = {
   ),
   weeklyTitleEnabled: process.env.WEEKLY_TITLE_ENABLED !== "false",
   achievementsAnnounce: process.env.ACHIEVEMENTS_ANNOUNCE !== "false",
+  insultsEnabled: process.env.INSULTS_ENABLED !== "false",
+  insultMaxPool: Math.min(300, Math.max(50, Number(process.env.INSULT_MAX_POOL ?? "300"))),
+  insultDailyBatch: Math.min(20, Math.max(5, Number(process.env.INSULT_DAILY_BATCH ?? "20"))),
   titleEmoji: {
     creep: process.env.TITLE_EMOJI_CREEP,
     support: process.env.TITLE_EMOJI_SUPPORT,

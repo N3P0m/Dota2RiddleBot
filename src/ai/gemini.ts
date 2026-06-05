@@ -17,6 +17,12 @@ import {
   parseNickBatchJson,
   sanitizeDailyNick,
 } from "./nick-style.js";
+import {
+  INSULT_SYSTEM,
+  buildInsultBatchPrompt,
+  filterValidInsultBatch,
+  parseInsultBatchJson,
+} from "./insult-style.js";
 import type { EmoSkillEntry } from "../game/emo-skills.js";
 import { logGeminiRequest, logGeminiResponse } from "./request-log.js";
 
@@ -89,6 +95,13 @@ const NICK_BATCH_GEN_CONFIG: GenerationConfig = {
   temperature: 1.1,
   topP: 0.92,
   topK: 40,
+};
+
+const INSULT_BATCH_GEN_CONFIG: GenerationConfig = {
+  responseMimeType: "application/json",
+  temperature: 1.15,
+  topP: 0.95,
+  topK: 50,
 };
 
 const NICK_MAX_ATTEMPTS = 2;
@@ -503,6 +516,47 @@ JSON only:
 
     const fallback = await this.generateDailyNick(nickDate, `${seed}-fallback`);
     return fallback ? [fallback] : [];
+  }
+
+  async generateInsultBatch(
+    insultDate: string,
+    seed: string,
+    count: number,
+    exclude: string[] = [],
+  ): Promise<string[]> {
+    const excludeSet = new Set(exclude.map((t) => t.toLowerCase()));
+    const prompt = buildInsultBatchPrompt(insultDate, seed, count, exclude);
+
+    if (this.logRequests) {
+      logGeminiRequest("insult", this.modelName, prompt, {
+        insultDate,
+        seed,
+        batch: count,
+      });
+    }
+
+    const started = Date.now();
+    try {
+      const result = await this.getModel(
+        INSULT_BATCH_GEN_CONFIG,
+        INSULT_SYSTEM,
+      ).generateContent(prompt);
+      const raw = result.response.text()?.trim() ?? "";
+      const parsed = parseInsultBatchJson(raw);
+      const insults = filterValidInsultBatch(parsed, count, excludeSet);
+      if (this.logRequests) {
+        logGeminiResponse("insult", raw, Date.now() - started, {
+          batch: insults.length,
+        });
+      }
+      if (insults.length > 0) return insults;
+      console.warn(
+        `[Gemini] insult batch rejected (${parsed.length} raw, 0 valid)`,
+      );
+    } catch (err) {
+      console.error(`[Gemini ←] insult batch ERROR ${Date.now() - started}ms`, err);
+    }
+    return [];
   }
 
   private parseEmoJsonResponse(raw: string | undefined): EmoRiddlePack | null {

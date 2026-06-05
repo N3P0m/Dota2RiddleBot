@@ -5,6 +5,7 @@ import {
   calculateHintPenalty,
   calculateSpeedBonus,
   calculateStreakBonus,
+  formatPointsBreakdown,
 } from "./scoring.js";
 
 const cfg = {
@@ -82,5 +83,37 @@ describe("calculateHintPenalty", () => {
     assert.equal(calculateHintPenalty(1, cfg), 2);
     assert.equal(calculateHintPenalty(3, cfg), 6);
     assert.equal(calculateHintPenalty(10, cfg), 6);
+  });
+});
+
+describe("formatPointsBreakdown", () => {
+  it("shows only total for plain win", () => {
+    const r = calculateRoundPoints(
+      { hintsUsed: 0, elapsedMs: 200_000, difficultyMultiplier: 1, streakBefore: 0 },
+      cfg,
+    );
+    assert.equal(formatPointsBreakdown(r), "<b>+10 очков</b>");
+  });
+
+  it("shows formula with speed and difficulty", () => {
+    const r = calculateRoundPoints(
+      { hintsUsed: 0, elapsedMs: 20_000, difficultyMultiplier: 1.5, streakBefore: 0 },
+      cfg,
+    );
+    const text = formatPointsBreakdown(r);
+    assert.match(text, /\+23 очка/);
+    assert.match(text, /10 база/);
+    assert.match(text, /\+5 за скорость/);
+    assert.match(text, /×1\.5 сложный герой/);
+    assert.match(text, /= 23/);
+  });
+
+  it("subtotal matches formula components", () => {
+    const r = calculateRoundPoints(
+      { hintsUsed: 1, elapsedMs: 20_000, difficultyMultiplier: 1.2, streakBefore: 2 },
+      cfg,
+    );
+    assert.equal(r.subtotal, r.base - r.hintPenalty + r.speedBonus + r.streakBonus);
+    assert.equal(r.total, Math.max(cfg.minPointsPerWin, Math.round(r.subtotal * r.difficultyMultiplier)));
   });
 });

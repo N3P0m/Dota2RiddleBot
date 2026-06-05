@@ -1,5 +1,6 @@
 import type { Context } from "grammy";
 import type { GameService } from "../game/round.js";
+import type { InsultService } from "../game/insults.js";
 import type { Repository } from "../db/repository.js";
 import { config } from "../config.js";
 import {
@@ -16,6 +17,7 @@ import {
   formatRiddle,
   formatSurrender,
   formatWin,
+  formatTaunt,
   formatAchievementMessages,
   type LeaderboardPeriod,
 } from "./format.js";
@@ -53,13 +55,27 @@ async function isGroupAdmin(ctx: Context): Promise<boolean> {
   return member.status === "creator" || member.status === "administrator";
 }
 
+export async function maybeReplyTaunt(
+  ctx: Context,
+  insults: InsultService,
+  chatIdStr: string,
+  context = insults.getTauntContext(chatIdStr),
+): Promise<void> {
+  const taunt = insults.rollTaunt(chatIdStr, context);
+  if (!taunt) return;
+  await ctx.reply(formatTaunt(taunt), { parse_mode: "HTML" });
+}
+
 async function executeRoundStart(
   ctx: Context,
   game: GameService,
+  insults: InsultService,
   mode: "text" | "emoji",
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
+
+  void insults.ensureDailyRefill();
 
   if (game.hasActiveRound(cid)) {
     await ctx.reply("⏳ Уже идёт раунд! Угадайте героя или нажмите «Сдаться».");
@@ -130,18 +146,24 @@ async function executeRoundStart(
 export async function executeRiddle(
   ctx: Context,
   game: GameService,
+  insults: InsultService,
 ): Promise<void> {
-  await executeRoundStart(ctx, game, "text");
+  await executeRoundStart(ctx, game, insults, "text");
 }
 
 export async function executeEmoRiddle(
   ctx: Context,
   game: GameService,
+  insults: InsultService,
 ): Promise<void> {
-  await executeRoundStart(ctx, game, "emoji");
+  await executeRoundStart(ctx, game, insults, "emoji");
 }
 
-export async function executeHint(ctx: Context, game: GameService): Promise<void> {
+export async function executeHint(
+  ctx: Context,
+  game: GameService,
+  insults: InsultService,
+): Promise<void> {
   const cid = chatId(ctx);
 
   if (!game.hasActiveRound(cid)) {
@@ -169,6 +191,7 @@ export async function executeHint(ctx: Context, game: GameService): Promise<void
         formatEmoHint(result.hint, result.hintNumber),
         { parse_mode: "HTML", reply_markup: keyboardDuringRound() },
       );
+      await maybeReplyTaunt(ctx, insults, cid);
     } catch (err) {
       console.error("hint error:", err);
       await ctx.reply("❌ Подсказка не вышла.");
@@ -211,6 +234,7 @@ export async function executeHint(ctx: Context, game: GameService): Promise<void
       true,
       keyboardDuringRound(),
     );
+    await maybeReplyTaunt(ctx, insults, cid);
   } catch (err) {
     ticker.stop();
     console.error("hint error:", err);
@@ -329,8 +353,6 @@ export async function executeTop(
 
 export async function replyWin(
   ctx: Context,
-  heroNameRu: string,
-  heroNameEn: string,
   result: Extract<
     Awaited<ReturnType<GameService["checkAnswer"]>>,
     { ok: true }
@@ -340,8 +362,7 @@ export async function replyWin(
   await ctx.reply(
     formatWin(
       displayName(ctx),
-      heroNameRu,
-      heroNameEn,
+      result.hero,
       result.breakdown,
       result.streakAfter,
       result.newTitle,

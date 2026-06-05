@@ -6,8 +6,10 @@ import {
   formatRecentAchievements,
   getAchievement,
 } from "../game/achievements.js";
+import type { Hero } from "../heroes/match.js";
 import type { RoundPointsResult } from "../game/scoring.js";
 import { formatPoints, formatPointsBreakdown } from "../game/scoring.js";
+import { getHeroDifficulty } from "../game/hero-difficulty.js";
 import {
   formatTitleBadge,
   formatTitleLine,
@@ -15,6 +17,20 @@ import {
   type Title,
 } from "../game/titles.js";
 import { formatReadableText } from "./text-layout.js";
+
+const ATTR_LABELS: Record<string, string> = {
+  str: "💪 Сила",
+  agi: "🏹 Ловкость",
+  int: "🧠 Интеллект",
+  all: "⚖️ Универсал",
+};
+
+const DIFFICULTY_LABELS: Record<string, string> = {
+  easy: "🟢 лёгкий",
+  normal: "",
+  hard: "🟠 сложный",
+  expert: "🔴 эксперт",
+};
 
 export type LeaderboardPeriod = "all" | "week" | "month";
 
@@ -88,6 +104,10 @@ export function formatEmoHint(hint: string, hintNumber: number): string {
   return `💡 <b>${label}:</b>\n\n${lines}`;
 }
 
+export function formatTaunt(text: string): string {
+  return `🗣 <b>Бот:</b> <i>${escapeHtml(text)}</i>`;
+}
+
 export function formatSurrender(
   heroNameRu: string,
   heroNameEn: string,
@@ -98,28 +118,69 @@ export function formatSurrender(
   );
 }
 
+function formatElapsedTime(ms: number): string {
+  const sec = Math.max(1, Math.floor(ms / 1000));
+  if (sec < 60) return `${sec} сек`;
+  const min = Math.floor(sec / 60);
+  const rem = sec % 60;
+  return rem > 0 ? `${min} мин ${rem} сек` : `${min} мин`;
+}
+
+function formatHintsLine(hintsUsed: number): string {
+  if (hintsUsed === 0) return "💡 без подсказок";
+  const n = hintsUsed;
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  let word = "подсказок";
+  if (mod100 < 11 || mod100 > 14) {
+    if (mod10 === 1) word = "подсказка";
+    else if (mod10 >= 2 && mod10 <= 4) word = "подсказки";
+  }
+  return `💡 ${n} ${word}`;
+}
+
+function formatHeroWinBlock(hero: Hero, breakdown: RoundPointsResult): string {
+  const attr = ATTR_LABELS[hero.primary_attr] ?? hero.primary_attr;
+  const diff = DIFFICULTY_LABELS[getHeroDifficulty(hero)];
+  const meta: string[] = [attr];
+  if (diff) meta.push(diff);
+  meta.push(`⏱ ${formatElapsedTime(breakdown.elapsedMs)}`);
+  meta.push(formatHintsLine(breakdown.hintsUsed));
+
+  return (
+    `🦸 <b>${escapeHtml(hero.name_ru)}</b> <i>(${escapeHtml(hero.name_en)})</i>\n` +
+    `<i>${meta.join(" · ")}</i>`
+  );
+}
+
 export function formatWin(
   displayName: string,
-  heroNameRu: string,
-  heroNameEn: string,
+  hero: Hero,
   breakdown: RoundPointsResult,
   streakAfter: number,
   newTitle?: Title,
   previousTitle?: Title,
 ): string {
-  let body =
-    `✅ <b>${escapeHtml(displayName)}</b> угадал(а): <b>${escapeHtml(heroNameRu)}</b> (${escapeHtml(heroNameEn)})!\n` +
-    formatPointsBreakdown(breakdown);
+  const lines = [
+    `✅ <b>Верно!</b> ${escapeHtml(displayName)}`,
+    "",
+    formatHeroWinBlock(hero, breakdown),
+    "",
+    `💰 ${formatPointsBreakdown(breakdown)}`,
+  ];
 
   if (streakAfter >= 3) {
-    body += `\n🔥 Серия: ${streakAfter} подряд!`;
+    lines.push("", `🔥 Серия: <b>${streakAfter}</b> подряд!`);
   }
 
   if (newTitle && previousTitle) {
-    body += `\n${formatTitleBadge(previousTitle)} → ${formatTitleBadge(newTitle)} Новый титул: <b>${escapeHtml(newTitle.name)}</b>!`;
+    lines.push(
+      "",
+      `${formatTitleBadge(previousTitle)} → ${formatTitleBadge(newTitle)} Новый титул: <b>${escapeHtml(newTitle.name)}</b>!`,
+    );
   }
 
-  return body;
+  return lines.join("\n");
 }
 
 export function formatLeaderboard(
