@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS rounds (
   answer_variants TEXT,
   hints_used INTEGER NOT NULL DEFAULT 0,
   round_mode TEXT NOT NULL DEFAULT 'text',
-  emo_skills TEXT
+  emo_skills TEXT,
+  hinted_skills TEXT NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS round_results (

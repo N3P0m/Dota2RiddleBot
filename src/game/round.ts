@@ -263,9 +263,16 @@ export class GameService {
       return { ok: true, hint, hintNumber };
     }
 
-    const hint = await this.gemini.generateHint(hero, round.riddle, hintNumber);
+    const previouslyHinted = this.repo.getHintedSkills(chatId);
+    const pack = await this.gemini.generateHint(
+      hero,
+      round.riddle,
+      hintNumber,
+      previouslyHinted,
+    );
     this.repo.incrementHints(chatId);
-    return { ok: true, hint, hintNumber };
+    this.repo.appendHintedSkill(chatId, pack.skillKey);
+    return { ok: true, hint: pack.hint, hintNumber };
   }
 
   surrenderRound(chatId: string): SurrenderResult {

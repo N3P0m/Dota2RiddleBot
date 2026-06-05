@@ -23,7 +23,7 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 <b>Команды:</b>
 /riddle — новая загадка
 /emo-riddle — эмо-загадка (1 эмодзи = 1 скилл)
-/hint — подсказка (короче и явнее)
+/hint — подсказка
 /nick — дотаник на сегодня (нейросеть)
 /nick new — перекатить (или кнопка под ником)
 /top — топ-10 за всё время
@@ -56,9 +56,7 @@ export function formatRiddle(riddle: string, showAnswer?: string): string {
 
 export function formatHint(hint: string, hintNumber: number): string {
   const label =
-    hintNumber <= 1
-      ? "Подсказка"
-      : `Подсказка #${hintNumber} (сильнее предыдущих)`;
+    hintNumber <= 1 ? "Подсказка" : `Подсказка #${hintNumber}`;
   return `💡 <b>${label}:</b>\n\n${escapeHtml(formatReadableText(hint))}`;
 }
 

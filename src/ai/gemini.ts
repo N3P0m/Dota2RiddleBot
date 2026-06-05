@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, type GenerationConfig } from "@google/generative-ai
 import type { Hero } from "../heroes/match.js";
 import {
   SYSTEM_INSTRUCTION,
+  isExplicitMechanicsHint,
   isWeakHint,
   isWeakRiddle,
   pickRiddleFormat,
@@ -48,9 +49,33 @@ const RIDDLE_GEN_CONFIG: GenerationConfig = {
   topK: 40,
 };
 
+const HINT_SYSTEM = `You write casual Russian hints for a Dota 2 hero quiz.
+NOT poetry, NOT lore voice lines, NOT riddles.
+Each hint describes ONE ability's GAMEPLAY EFFECT in plain Russian — станит, замедляет, притягивает, снимает баффы, лечит союзников, телепортирует, и т.д.
+Do NOT name the ability in hint text. Do NOT name the hero. Do NOT use numbers (no seconds, damage, %, cooldowns — patches change values).
+skill_key is for server-side dedup only; the player never sees it.
+Return strict JSON only.`;
+
+const HINT_SKILL_KEYS = new Set([
+  "Q",
+  "W",
+  "E",
+  "R",
+  "ULT",
+  "TALENT",
+  "PASSIVE",
+]);
+
 const HINT_GEN_CONFIG: GenerationConfig = {
-  temperature: 0.85,
+  responseMimeType: "application/json",
+  temperature: 0.75,
   topP: 0.9,
+};
+
+export type HintPack = {
+  hint: string;
+  /** Q / W / E / R / ULT — для программного учёта, игрок не видит */
+  skillKey: string;
 };
 
 const NICK_GEN_CONFIG: GenerationConfig = {
@@ -261,49 +286,151 @@ JSON only:
     hero: Hero,
     riddle: string,
     hintNumber: number,
-  ): Promise<string> {
-    const levelRules = hintLevelRules(hintNumber);
-    const prompt = `Hint for active round. RUSSIAN ONLY, 1–2 sentences.
+    previouslyHinted: string[] = [],
+  ): Promise<HintPack> {
+    const alreadyHinted =
+      previouslyHinted.length > 0
+        ? previouslyHinted.join(", ")
+        : "none yet";
 
-This is hint #${hintNumber} in this round. It MUST be noticeably more revealing than any previous hint in the same round (players already saw ${hintNumber - 1} weaker hint(s)).
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const pack = await this.requestHint(
+        hero,
+        riddle,
+        hintNumber,
+        alreadyHinted,
+        previouslyHinted,
+        attempt,
+      );
+      if (pack) return pack;
+      console.warn(
+        `Hint quality retry ${attempt + 1}/3 for ${hero.name_en}`,
+      );
+    }
 
-Riddle already shown:
+    return this.fallbackHint(hero, previouslyHinted);
+  }
+
+  private buildHintPrompt(
+    hero: Hero,
+    riddle: string,
+    hintNumber: number,
+    alreadyHinted: string,
+    attempt: number,
+  ): string {
+    const retryNote =
+      attempt > 0
+        ? "Previous attempt named the ability, used numbers, repeated a skill_key, or was too poetic. Describe ONLY the effect; pick a DIFFERENT skill_key."
+        : "";
+
+    return `Text riddle round — hint #${hintNumber}. RUSSIAN ONLY.
+
+Riddle (literary style, for context only — do NOT match its tone):
 """${riddle}"""
 
-Hero: ${hero.name_en} / ${hero.name_ru}. Roles: ${hero.roles.join(", ")}. Primary attribute: ${hero.primary_attr}.
+Hero: ${hero.name_en} / ${hero.name_ru}. Roles: ${hero.roles.join(", ")}.
+Already hinted skill_key values this round (server tracks these — pick a DIFFERENT one): ${alreadyHinted}.
+${retryNote}
 
-${levelRules}
+Pick ONE different ability. In 1–2 short casual sentences describe what it DOES in gameplay terms:
+- OK: оглушает, замедляет, притягивает к себе, снимает баффы, даёт невидимость, лечит, щит, урон по области
+- NOT OK: название скилла, имя героя, цифры (секунды, урон, %, кд)
 
-Rules: same lore tone; NO hero name; NOT a quiz question. Do NOT start with "Подсказка:". Plain text, no markdown. Use \\n\\n between sentences if more than one.`;
+JSON only:
+{"hint":"Цепляет врага и тащит к кастеру — из куста часто не ждут.","skill_key":"Q","skill_ru":"Мясной крюк"}`;
+  }
+
+  private async requestHint(
+    hero: Hero,
+    riddle: string,
+    hintNumber: number,
+    alreadyHinted: string,
+    previouslyHinted: string[],
+    attempt: number,
+  ): Promise<HintPack | null> {
+    const prompt = this.buildHintPrompt(
+      hero,
+      riddle,
+      hintNumber,
+      alreadyHinted,
+      attempt,
+    );
 
     if (this.logRequests) {
       logGeminiRequest("hint", this.modelName, prompt, {
         hero: hero.name_en,
+        hintNumber,
+        previouslyHinted,
+        attempt: attempt + 1,
+        systemInstruction: HINT_SYSTEM,
         config: HINT_GEN_CONFIG,
       });
     }
 
     const started = Date.now();
     try {
-      const result = await this.getModel(HINT_GEN_CONFIG).generateContent(
+      const result = await this.getModel(HINT_GEN_CONFIG, HINT_SYSTEM).generateContent(
         prompt,
       );
       const raw = result.response.text();
-      const text = sanitizeHintText(raw?.trim().replace(/\\n/g, "\n") ?? "");
+      const parsed = this.parseHintJsonResponse(raw);
       if (this.logRequests) {
-        logGeminiResponse("hint", raw, Date.now() - started, text ? { text } : undefined);
+        logGeminiResponse("hint", raw, Date.now() - started, parsed ?? undefined);
       }
-      if (text && !isWeakHint(text, hero.name_ru, hero.name_en)) {
-        return text;
-      }
-      console.warn(
-        `[Gemini] hint rejected for ${hero.name_en}, using fallback (len=${text.length})`,
+      if (!parsed) return null;
+
+      const hint = sanitizeHintText(parsed.hint);
+      const skillKey = parsed.skillKey.trim().toUpperCase();
+      if (!hint || !skillKey) return null;
+      if (!HINT_SKILL_KEYS.has(skillKey)) return null;
+      if (isWeakHint(hint, hero.name_ru, hero.name_en)) return null;
+      if (isExplicitMechanicsHint(hint, parsed.skillRu)) return null;
+
+      const duplicate = previouslyHinted.some(
+        (s) => s.trim().toUpperCase() === skillKey,
       );
+      if (duplicate) return null;
+
+      return { hint, skillKey };
     } catch (err) {
       console.error(`[Gemini ←] hint ERROR ${Date.now() - started}ms`, err);
     }
+    return null;
+  }
 
-    return this.fallbackHint(hero, hintNumber);
+  private parseHintJsonResponse(raw: string | undefined): {
+    hint: string;
+    skillKey: string;
+    skillRu?: string;
+  } | null {
+    if (!raw) return null;
+
+    const tryParse = (text: string): {
+      hint: string;
+      skillKey: string;
+      skillRu?: string;
+    } | null => {
+      try {
+        const data = JSON.parse(text) as {
+          hint?: string;
+          skill_key?: string;
+          skill_ru?: string;
+        };
+        const hint = String(data.hint ?? "").trim().replace(/\\n/g, "\n");
+        const skillKey = String(data.skill_key ?? "").trim();
+        const skillRu = String(data.skill_ru ?? "").trim();
+        if (!hint || !skillKey) return null;
+        return { hint, skillKey, skillRu };
+      } catch {
+        return null;
+      }
+    };
+
+    const direct = tryParse(raw);
+    if (direct) return direct;
+
+    const match = raw.match(/\{[\s\S]*\}/);
+    return match ? tryParse(match[0]) : null;
   }
 
   async generateDailyNick(nickDate: string, seed: string): Promise<string | null> {
@@ -511,37 +638,38 @@ Rules: same lore tone; NO hero name; NOT a quiz question. Do NOT start with "П�
     ].join("\n\n");
   }
 
-  private fallbackHint(hero: Hero, hintNumber: number): string {
-    const attr =
-      hero.primary_attr === "str"
-        ? "сила"
-        : hero.primary_attr === "agi"
-          ? "ловкость"
-          : hero.primary_attr === "int"
-            ? "интеллект"
-            : "универсал";
-    const roles = hero.roles.slice(0, 2).join(" и ");
+  private fallbackHint(hero: Hero, previouslyHinted: string[]): HintPack {
+    const slots: Array<{ skillKey: string; hint: string }> = [
+      {
+        skillKey: "Q",
+        hint: "Одна из кнопок накидывает жёсткий контроль — стан или рут, из которого сложно выбраться.",
+      },
+      {
+        skillKey: "W",
+        hint: "Вторая способность чаще замедляет, снимает баффы или даёт защиту в драке.",
+      },
+      {
+        skillKey: "E",
+        hint: "Ещё одна кнопка усиливает давление — пассивный урон, снижение брони или уклонение от ударов.",
+      },
+      {
+        skillKey: "ULT",
+        hint: "Ультимейт меняет тимфайт: массовый контроль, неуязвимость или огромный всплеск урона по области.",
+      },
+      {
+        skillKey: "PASSIVE",
+        hint: "Пассивка постоянно подкручивает его стиль — дополнительный урон, хил или бонус к передвижению.",
+      },
+    ];
 
-    if (hintNumber <= 1) {
-      return `На линии его чаще видят как ${roles}; стихия — ${attr}, без явных имён способностей.`;
+    for (const slot of slots) {
+      const used = previouslyHinted.some(
+        (s) => s.trim().toUpperCase() === slot.skillKey,
+      );
+      if (!used) return slot;
     }
-    if (hintNumber === 2) {
-      return `Стихия — ${attr}, роли: ${roles}. Вспомни фирменный скилл или предмет, с которым его узнают в пабе.`;
-    }
-    return `Почти ответ: ${attr}, ${roles} — назови вслух фирменный скилл, ульт или предмет, без имени героя в тексте; догадаться уже должно быть легко.`;
-  }
-}
 
-function hintLevelRules(hintNumber: number): string {
-  if (hintNumber <= 1) {
-    return `Level 1 (MILD): atmosphere + vague role/lane only; NO signature ability names; weakest clue.`;
+    return slots[slots.length - 1]!;
   }
-  if (hintNumber === 2) {
-    return `Level 2 (STRONGER than hint #1): one signature skill OR iconic item OR lane matchup; still NO hero name.`;
-  }
-  if (hintNumber === 3) {
-    return `Level 3 (STRONGER than hints #1–#2): two concrete mechanics, voice-line mood, or item combo players instantly associate with this hero.`;
-  }
-  return `Level ${hintNumber} (MAX — stronger than ALL prior hints): near-reveal — spell/item/ult combo + attribute + role; prepared players guess instantly; still NO hero name in text.`;
 }
 

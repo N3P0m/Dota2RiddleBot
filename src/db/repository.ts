@@ -39,6 +39,7 @@ export type RoundRow = {
   hints_used: number;
   round_mode: string;
   emo_skills: string | null;
+  hinted_skills: string;
 };
 
 export type UserAchievementRow = {
@@ -53,7 +54,7 @@ export type WeeklyTitleRow = {
 };
 
 const ROUND_COLUMNS =
-  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills";
+  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills, hinted_skills";
 
 const SCORE_COLUMNS =
   "chat_id, user_id, username, display_name, points, wins, current_streak, best_streak, riddles_started";
@@ -94,6 +95,11 @@ export class Repository {
     }
     if (!roundNames.has("emo_skills")) {
       this.db.exec(`ALTER TABLE rounds ADD COLUMN emo_skills TEXT`);
+    }
+    if (!roundNames.has("hinted_skills")) {
+      this.db.exec(
+        `ALTER TABLE rounds ADD COLUMN hinted_skills TEXT NOT NULL DEFAULT '[]'`,
+      );
     }
 
     const scoreCols = this.db
@@ -276,8 +282,8 @@ export class Repository {
     const variantsJson = JSON.stringify(answerVariants);
     this.db
       .prepare(
-        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills)
-         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?)
+        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills, hinted_skills)
+         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, '[]')
          ON CONFLICT(chat_id) DO UPDATE SET
            hero_id = excluded.hero_id,
            started_by = excluded.started_by,
@@ -287,7 +293,8 @@ export class Repository {
            hints_used = 0,
            winner_user_id = NULL,
            round_mode = excluded.round_mode,
-           emo_skills = excluded.emo_skills`,
+           emo_skills = excluded.emo_skills,
+           hinted_skills = '[]'`,
       )
       .run(
         chatId,
@@ -306,6 +313,31 @@ export class Repository {
     this.db
       .prepare(`UPDATE rounds SET hints_used = hints_used + 1 WHERE chat_id = ?`)
       .run(chatId);
+  }
+
+  getHintedSkills(chatId: string): string[] {
+    const round = this.getRound(chatId);
+    if (!round?.hinted_skills) return [];
+    try {
+      const data = JSON.parse(round.hinted_skills) as unknown;
+      if (!Array.isArray(data)) return [];
+      return data.map((s) => String(s).trim()).filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  appendHintedSkill(chatId: string, skillKey: string): void {
+    const skills = this.getHintedSkills(chatId);
+    const trimmed = skillKey.trim().toUpperCase();
+    if (!trimmed) return;
+    if (skills.some((s) => s.trim().toUpperCase() === trimmed)) {
+      return;
+    }
+    skills.push(trimmed);
+    this.db
+      .prepare(`UPDATE rounds SET hinted_skills = ? WHERE chat_id = ?`)
+      .run(JSON.stringify(skills), chatId);
   }
 
   finishRound(chatId: string, winnerUserId: string): void {

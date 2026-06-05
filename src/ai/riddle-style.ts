@@ -14,7 +14,7 @@ ${STYLE_STACCATO_RU}
 ${STYLE_ELEVATED_RU}
 
 Output rules:
-- Field "riddle" and hints: RUSSIAN ONLY.
+- Field "riddle": RUSSIAN ONLY.
 - Sound like in-game lore / voice lines — NOT a school riddle, NOT "guess who", NOT "я герой", NOT listing roles like "керри/саппорт".
 - Each riddle must be UNIQUE: fresh metaphors, concrete ability imagery for the requested hero.
 - Never include the hero's name (RU/EN) or obvious letter-play on it.
@@ -63,6 +63,19 @@ const HINT_BANNED = [
   "назови героя",
 ];
 
+/** Маркеры литературного/лорного стиля — для текстовых подсказок нежелательны. */
+const HINT_LITERARY_MARKERS = [
+  "дабы",
+  "ибо",
+  "рождён",
+  "рожден",
+  "узрев",
+  "паче чаяния",
+  "соратник",
+  "угаснуть",
+  "возвышается",
+];
+
 export function sanitizeHintText(raw: string): string {
   return raw
     .trim()
@@ -86,7 +99,32 @@ export function isWeakHint(hint: string, heroNameRu: string, heroNameEn: string)
     return true;
   }
 
+  for (const marker of HINT_LITERARY_MARKERS) {
+    if (lower.includes(marker)) return true;
+  }
+
+  if (isExplicitMechanicsHint(text)) return true;
+
   return containsHeroName(lower, heroNameRu, heroNameEn);
+}
+
+/** Подсказка не должна называть скилл и не должна содержать цифры (патч-значения). */
+export function isExplicitMechanicsHint(
+  hint: string,
+  skillNameRu?: string,
+): boolean {
+  const text = sanitizeHintText(hint);
+  if (/\d/.test(text)) return true;
+
+  if (skillNameRu) {
+    const skill = skillNameRu.toLowerCase().replace(/ё/g, "е").trim();
+    if (skill.length >= 4) {
+      const lower = text.toLowerCase().replace(/ё/g, "е");
+      if (lower.includes(skill)) return true;
+    }
+  }
+
+  return false;
 }
 
 function containsHeroName(

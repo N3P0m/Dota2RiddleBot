@@ -4,7 +4,7 @@ import type { Bot } from "grammy";
 const BOT_COMMANDS = [
   { command: "riddle", description: "Новая загадка" },
   { command: "emo_riddle", description: "Эмо-загадка (скиллы эмодзи)" },
-  { command: "hint", description: "Подсказка (каждая явнее)" },
+  { command: "hint", description: "Подсказка про один скилл" },
   { command: "nick", description: "Дотаник на сегодня" },
   { command: "top", description: "Топ-10 чата" },
   { command: "me", description: "Профиль: титул и очки" },
