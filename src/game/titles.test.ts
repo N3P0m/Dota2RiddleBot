@@ -4,7 +4,10 @@ import {
   getTitleByPoints,
   getNextTitle,
   getStarsInTitle,
+  getRankProgress,
   formatRankName,
+  formatRankProgress,
+  formatProgressBar,
   MAX_RANK_POINTS,
   TITLES,
 } from "./titles.js";
@@ -62,6 +65,54 @@ describe("getStarsInTitle", () => {
     const titan3Points = 5420 + Math.floor((MAX_RANK_POINTS - 5420) / 5) * 2;
     assert.equal(getStarsInTitle(titan3Points), 3);
     assert.equal(formatRankName(getTitleByPoints(titan3Points), titan3Points), "Титан 3");
+  });
+});
+
+describe("getRankProgress", () => {
+  it("tracks progress to next star", () => {
+    const p = getRankProgress(3200);
+    assert.equal(p.isMax, false);
+    assert.equal(p.current, "Легенда 2");
+    assert.equal(p.next, "Легенда 3");
+    assert.ok(p.percent > 0);
+    assert.ok(p.remaining > 0);
+  });
+
+  it("tracks progress from star 5 to next medal", () => {
+    const p = getRankProgress(3659);
+    assert.equal(p.current, "Легенда 5");
+    assert.equal(p.next, "Властелин 1");
+    assert.equal(p.remaining, 1);
+  });
+
+  it("marks max rank at 15000", () => {
+    const p = getRankProgress(MAX_RANK_POINTS);
+    assert.equal(p.isMax, true);
+    assert.equal(p.current, "Титан 5");
+  });
+});
+
+describe("formatRankProgress", () => {
+  it("includes progress bar", () => {
+    const line = formatRankProgress(3200);
+    assert.match(line, /📊/);
+    assert.match(line, /Легенда 2/);
+    assert.match(line, /Легенда 3/);
+    assert.match(line, /█/);
+    assert.match(line, /ещё/);
+  });
+
+  it("shows max rank message", () => {
+    const line = formatRankProgress(MAX_RANK_POINTS);
+    assert.match(line, /максимальный ранг/);
+  });
+});
+
+describe("formatProgressBar", () => {
+  it("renders filled and empty segments", () => {
+    assert.equal(formatProgressBar(0), "░░░░░░░░░░");
+    assert.equal(formatProgressBar(100), "██████████");
+    assert.equal(formatProgressBar(50).length, 10);
   });
 });
 

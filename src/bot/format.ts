@@ -12,6 +12,7 @@ import { formatPoints, formatPointsBreakdown } from "../game/scoring.js";
 import { getHeroDifficulty } from "../game/hero-difficulty.js";
 import {
   formatRankName,
+  formatRankProgress,
   formatTitleBadge,
   formatTitleLine,
   getTitleByPoints,
@@ -184,6 +185,10 @@ export function formatWin(
       "",
       `${formatTitleBadge(previousTitle)} → ${formatTitleBadge(newTitle)} Новый ранг: <b>${escapeHtml(pointsAfter !== undefined ? formatRankName(newTitle, pointsAfter) : newTitle.name)}</b>!`,
     );
+  }
+
+  if (pointsAfter !== undefined) {
+    lines.push("", formatRankProgress(pointsAfter));
   }
 
   return lines.join("\n");
