@@ -355,6 +355,48 @@ function resolveFighterTurn(
   executeAction(actor, target, action, log);
 }
 
+const SKILL_KEYS = ["Q", "W", "E", "R"] as const;
+
+/** Случайный предмет (если есть) и скилл/атака для автобоя. */
+export function pickRandomTurnChoices(fighter: FighterState): {
+  itemId?: number;
+  action: BattleAction;
+} {
+  const usableItems = fighter.battleItems.filter((i) => i.usesRemaining > 0);
+  let itemId: number | undefined;
+  if (usableItems.length > 0 && Math.random() < 0.55) {
+    itemId =
+      usableItems[Math.floor(Math.random() * usableItems.length)]!.itemId;
+  }
+
+  const combat = getCombatHero(fighter.heroId);
+  const actions: BattleAction[] = ["attack"];
+  if (combat && fighter.statuses.silenced <= 0) {
+    for (const key of SKILL_KEYS) {
+      const skill = combat.skills.find((s) => s.key === key);
+      if (!skill) continue;
+      const cd = fighter.cooldowns[key] ?? 0;
+      if (cd <= 0 && fighter.mana >= skill.mana_cost) {
+        actions.push(key);
+      }
+    }
+  }
+
+  return {
+    itemId,
+    action: actions[Math.floor(Math.random() * actions.length)]!,
+  };
+}
+
+/** Заполняет pending-ходы обоих бойцов перед resolveTurn. */
+export function prepareAutoTurn(state: BattleState): void {
+  for (const fighter of [state.challenger, state.defender]) {
+    const { itemId, action } = pickRandomTurnChoices(fighter);
+    fighter.pendingItemId = itemId;
+    fighter.pendingAction = action;
+  }
+}
+
 export function setPendingItem(
   state: BattleState,
   userId: string,

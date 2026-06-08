@@ -24,7 +24,7 @@ export function calcTauntChance(ctx: TauntContext): number {
   if (wrongGuesses >= 2) {
     chance += 0.1 + (wrongGuesses - 2) * 0.12;
   } else if (wrongGuesses === 1) {
-    chance += 0.05;
+    chance += 0.15;
   }
 
   return Math.min(0.85, chance);

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { calculateGoldWinReward } from "./gold-rewards.js";
 
 const cfg = {
-  goldPerWin: 15,
-  goldHintWinnerTax: 4,
+  goldPerWin: 8,
+  goldHintWinnerTax: 2,
   speedBonusFast: 5,
   speedBonusMed: 2,
 };
@@ -15,7 +15,7 @@ describe("calculateGoldWinReward", () => {
       { hintsUsed: 0, elapsedMs: 20_000, difficultyMultiplier: 1 },
       cfg,
     );
-    assert.equal(r.total, 20);
+    assert.equal(r.total, 13);
     assert.equal(r.speedBonus, 5);
   });
 
@@ -24,8 +24,8 @@ describe("calculateGoldWinReward", () => {
       { hintsUsed: 2, elapsedMs: 200_000, difficultyMultiplier: 1 },
       cfg,
     );
-    assert.equal(r.hintTax, 8);
-    assert.equal(r.total, 7);
+    assert.equal(r.hintTax, 4);
+    assert.equal(r.total, 4);
   });
 
   it("applies difficulty multiplier", () => {
@@ -33,6 +33,6 @@ describe("calculateGoldWinReward", () => {
       { hintsUsed: 0, elapsedMs: 200_000, difficultyMultiplier: 1.5 },
       cfg,
     );
-    assert.equal(r.total, 23);
+    assert.equal(r.total, 12);
   });
 });

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   createFighter,
   initBattle,
+  prepareAutoTurn,
   resolveTurn,
   setPendingAction,
   setPendingItem,
@@ -71,6 +72,15 @@ describe("battle engine", () => {
       result.state.log.some((l) => l.includes("Танго")),
       "item effect should appear in log",
     );
+  });
+
+  it("prepareAutoTurn fills both fighters", () => {
+    const ch = createFighter("u1", 14, 1, [{ itemId: 1, usesRemaining: 2 }])!;
+    const def = createFighter("u2", 5, 1, [])!;
+    const state = initBattle(ch, def);
+    prepareAutoTurn(state);
+    assert.ok(state.challenger.pendingAction);
+    assert.ok(state.defender.pendingAction);
   });
 
   it("removes item from battle when uses depleted", () => {

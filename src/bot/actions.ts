@@ -25,8 +25,8 @@ import {
   formatAchievementMessages,
   type LeaderboardPeriod,
 } from "./format.js";
-import { keyboardAfterWin, keyboardDuringRound, keyboardLeaderboard } from "./keyboards.js";
-import { replyHtml } from "./telegram-html.js";
+import { keyboardAfterWin, keyboardDuringRound, keyboardHub, keyboardLeaderboard } from "./keyboards.js";
+import { replyHtml, replyOrEditHtml } from "./telegram-html.js";
 import {
   EMO_LOADING_STATUSES,
   HINT_LOADING_STATUSES,
@@ -200,6 +200,7 @@ export async function executeHint(
   const emojiMode = game.getRoundMode(cid) === "emoji";
 
   if (emojiMode) {
+    const preferEdit = !!ctx.callbackQuery?.message;
     try {
       const result = await game.requestHint(cid, uid);
       if (!result.ok) {
@@ -209,17 +210,27 @@ export async function executeHint(
             : result.reason === "no_round"
               ? "Нет активной загадки."
               : "🏁 Герой уже угадан!";
-        await ctx.reply(msg);
+        if (preferEdit) {
+          await replyOrEditHtml(ctx, msg, keyboardDuringRound());
+        } else {
+          await ctx.reply(msg);
+        }
         return;
       }
-      await ctx.reply(
+      await replyOrEditHtml(
+        ctx,
         formatEmoHint(result.hint, result.hintNumber),
-        { parse_mode: "HTML", reply_markup: keyboardDuringRound() },
+        keyboardDuringRound(),
       );
       await maybeReplyTaunt(ctx, insults, cid);
     } catch (err) {
       console.error("hint error:", err);
-      await ctx.reply("❌ Подсказка не вышла.");
+      const errMsg = "❌ Подсказка не вышла.";
+      if (preferEdit) {
+        await replyOrEditHtml(ctx, errMsg, keyboardDuringRound());
+      } else {
+        await ctx.reply(errMsg);
+      }
     }
     return;
   }
@@ -363,10 +374,8 @@ export async function executeTop(
 
   if (period === "all") {
     const rows = repo.getLeaderboard(cid);
-    await ctx.reply(formatLeaderboard(rows, "all"), {
-      parse_mode: "HTML",
-      reply_markup: keyboardLeaderboard(),
-    });
+    const markup = rows.length === 0 ? keyboardHub() : keyboardLeaderboard();
+    await replyOrEditHtml(ctx, formatLeaderboard(rows, "all"), markup);
     return;
   }
 
@@ -377,9 +386,11 @@ export async function executeTop(
     if (allTime) pointsMap.set(row.user_id, allTime.points);
   }
 
-  await ctx.reply(
+  const markup = rows.length === 0 ? keyboardHub() : keyboardLeaderboard();
+  await replyOrEditHtml(
+    ctx,
     formatLeaderboard(rows, period, rangeLabel, pointsMap),
-    { parse_mode: "HTML", reply_markup: keyboardLeaderboard() },
+    markup,
   );
 }
 

@@ -7,17 +7,24 @@ const USED_WEIGHT = 0.08;
  * Случайный герой: не из списка — нормальный шанс, из списка — ~8%.
  * Когда в истории уже все герои — равный выбор (историю сбрасывает вызывающий код).
  */
-export function pickHeroForSession(recentHeroIds: number[]): Hero {
+export function pickHeroForSession(
+  recentHeroIds: number[],
+  pool: readonly Hero[] = heroes,
+): Hero {
+  if (pool.length === 0) {
+    throw new Error("pickHeroForSession: empty hero pool");
+  }
+
   const recentSet = new Set(recentHeroIds);
 
-  const weights = heroes.map((h) => (recentSet.has(h.id) ? USED_WEIGHT : 1));
+  const weights = pool.map((h) => (recentSet.has(h.id) ? USED_WEIGHT : 1));
   const total = weights.reduce((a, b) => a + b, 0);
   let roll = Math.random() * total;
 
-  for (let i = 0; i < heroes.length; i++) {
+  for (let i = 0; i < pool.length; i++) {
     roll -= weights[i]!;
-    if (roll <= 0) return heroes[i]!;
+    if (roll <= 0) return pool[i]!;
   }
 
-  return heroes[heroes.length - 1]!;
+  return pool[pool.length - 1]!;
 }

@@ -1,4 +1,9 @@
 import type { Repository } from "../../db/repository.js";
+import type { WalletService } from "../economy/wallet.js";
+import {
+  calculateBattleGoldReward,
+  type BattleGoldConfig,
+} from "../economy/battle-rewards.js";
 import { getCombatHero } from "../catalog/catalog.js";
 import {
   persistAchievements,
@@ -6,16 +11,15 @@ import {
 } from "../achievements.js";
 import {
   createFighter,
+  formatActionLabel,
   initBattle,
+  prepareAutoTurn,
   resolveTurn,
-  setPendingAction,
-  setPendingItem,
-  bothReady,
-  type BattleAction,
   type BattleItemState,
   type BattleState,
   type FighterState,
 } from "./engine.js";
+import { getItemById } from "../catalog/catalog.js";
 import { calculateMmrDelta } from "./mmr.js";
 
 export const XP_WIN = 40;
@@ -26,11 +30,20 @@ export type BattleStartResult =
   | { ok: true; battleId: number; state: BattleState }
   | { ok: false; reason: "active" | "no_hero" | "self" | "not_in_combat" };
 
+export type BattleServiceConfig = BattleGoldConfig & {
+  battleKFactor: number;
+};
+
 export class BattleService {
   constructor(
     private repo: Repository,
-    private kFactor: number,
+    private wallet: WalletService,
+    private cfg: BattleServiceConfig,
   ) {}
+
+  private get kFactor(): number {
+    return this.cfg.battleKFactor;
+  }
 
   hasActiveBattle(chatId: string): boolean {
     const b = this.repo.getBattleByChat(chatId);
@@ -161,49 +174,7 @@ export class BattleService {
     return { ok: true, state, battleId: battle.id };
   }
 
-  submitItemUse(
-    chatId: string,
-    userId: string,
-    itemId: number,
-  ): { ok: true; state: BattleState } | { ok: false; reason: string } {
-    const battle = this.repo.getBattleByChat(chatId);
-    if (!battle || battle.state !== "active") {
-      return { ok: false, reason: "no_battle" };
-    }
-
-    if (
-      userId !== battle.challenger_id &&
-      userId !== battle.defender_id
-    ) {
-      return { ok: false, reason: "not_participant" };
-    }
-
-    const state = JSON.parse(battle.state_json) as BattleState;
-    const fighter =
-      state.challenger.userId === userId
-        ? state.challenger
-        : state.defender;
-
-    if (fighter.pendingAction != null) {
-      return { ok: false, reason: "turn_locked" };
-    }
-
-    if (!setPendingItem(state, userId, itemId)) {
-      return { ok: false, reason: "invalid_item" };
-    }
-
-    this.repo.updateBattle(battle.id, {
-      state_json: JSON.stringify(state),
-    });
-
-    return { ok: true, state };
-  }
-
-  submitAction(
-    chatId: string,
-    userId: string,
-    action: BattleAction,
-  ):
+  advanceAutoTurn(chatId: string):
     | {
         ok: true;
         state: BattleState;
@@ -213,6 +184,9 @@ export class BattleService {
         loserMmrDelta?: number;
         winnerXpGain?: number;
         loserXpGain?: number;
+        winnerGoldGain?: number;
+        loserGoldGain?: number;
+        unlockedAchievements?: AchievementId[];
       }
     | { ok: false; reason: string } {
     const battle = this.repo.getBattleByChat(chatId);
@@ -220,24 +194,9 @@ export class BattleService {
       return { ok: false, reason: "no_battle" };
     }
 
-    if (
-      userId !== battle.challenger_id &&
-      userId !== battle.defender_id
-    ) {
-      return { ok: false, reason: "not_participant" };
-    }
-
     const state = JSON.parse(battle.state_json) as BattleState;
-    if (!setPendingAction(state, userId, action)) {
-      return { ok: false, reason: "already_picked" };
-    }
-
-    if (!bothReady(state)) {
-      this.repo.updateBattle(battle.id, {
-        state_json: JSON.stringify(state),
-      });
-      return { ok: true, state, finished: false };
-    }
+    prepareAutoTurn(state);
+    this.logAutoChoices(state);
 
     const result = resolveTurn(state);
     this.syncItemUsesFromBattle(
@@ -260,12 +219,18 @@ export class BattleService {
     let loserMmrDelta: number | undefined;
     let winnerXpGain: number | undefined;
     let loserXpGain: number | undefined;
+    let winnerGoldGain: number | undefined;
+    let loserGoldGain: number | undefined;
+    let unlockedAchievements: AchievementId[] | undefined;
     if (result.finished && result.winnerId) {
       const finish = this.finishBattle(chatId, battle.id, result.winnerId);
       winnerMmrDelta = finish.winnerDelta;
       loserMmrDelta = finish.loserDelta;
       winnerXpGain = finish.winnerXpGain;
       loserXpGain = finish.loserXpGain;
+      winnerGoldGain = finish.winnerGoldGain;
+      loserGoldGain = finish.loserGoldGain;
+      unlockedAchievements = finish.unlockedAchievements;
     }
 
     return {
@@ -277,7 +242,26 @@ export class BattleService {
       loserMmrDelta,
       winnerXpGain,
       loserXpGain,
+      winnerGoldGain,
+      loserGoldGain,
+      unlockedAchievements,
     };
+  }
+
+  private logAutoChoices(state: BattleState): void {
+    for (const fighter of [state.challenger, state.defender]) {
+      const parts: string[] = [];
+      if (fighter.pendingItemId != null) {
+        const item = getItemById(fighter.pendingItemId);
+        parts.push(item?.name_ru ?? "предмет");
+      }
+      if (fighter.pendingAction) {
+        parts.push(formatActionLabel(fighter.heroId, fighter.pendingAction));
+      }
+      if (parts.length > 0) {
+        state.log.push(`🎲 ${fighter.userId}: ${parts.join(" → ")}`);
+      }
+    }
   }
 
   private finishBattle(
@@ -289,6 +273,9 @@ export class BattleService {
     loserDelta: number;
     winnerXpGain: number;
     loserXpGain: number;
+    winnerGoldGain: number;
+    loserGoldGain: number;
+    unlockedAchievements: AchievementId[];
   } {
     const battle = this.repo.getBattle(battleId)!;
     const loserId =
@@ -322,6 +309,11 @@ export class BattleService {
         : state.defender.heroId;
     this.repo.addHeroXp(chatId, loserId, loserHeroId, XP_LOSS);
 
+    const winnerGoldGain = calculateBattleGoldReward(true, this.cfg);
+    const loserGoldGain = calculateBattleGoldReward(false, this.cfg);
+    this.wallet.credit(winnerId, winnerGoldGain, "battle_win", chatId, String(battleId));
+    this.wallet.credit(loserId, loserGoldGain, "battle_loss", chatId, String(battleId));
+
     const unlocked: AchievementId[] = [];
     const existing = new Set(
       this.repo
@@ -341,6 +333,9 @@ export class BattleService {
       loserDelta,
       winnerXpGain: XP_WIN,
       loserXpGain: XP_LOSS,
+      winnerGoldGain,
+      loserGoldGain,
+      unlockedAchievements: unlocked,
     };
   }
 

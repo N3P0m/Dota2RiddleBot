@@ -11,6 +11,8 @@ import { ShopService } from "./game/collection/shop.js";
 import { BattleService } from "./game/battle/service.js";
 import { registerBotCommands } from "./bot/commands.js";
 import { registerHandlers } from "./bot/handlers.js";
+import { BattleAutoRunner } from "./bot/battle-auto.js";
+import { expirePendingBattle } from "./bot/battle-handlers.js";
 import { logIncomingUpdates } from "./bot/incoming-log.js";
 import {
   HeroEmojiMapStore,
@@ -26,10 +28,17 @@ import {
 } from "./game/weekly-title.js";
 import { getPreviousWeekKey } from "./game/periods.js";
 
-const repo = new Repository(config.databasePath);
+const repo = new Repository(config.databasePath, {
+  startingGold: config.startingGold,
+  startingBattleMmr: config.startingBattleMmr,
+});
 const wallet = new WalletService(repo);
 const shop = new ShopService(repo, wallet);
-const battle = new BattleService(repo, config.battleKFactor);
+const battle = new BattleService(repo, wallet, {
+  battleKFactor: config.battleKFactor,
+  goldPerBattleWin: config.goldPerBattleWin,
+  goldPerBattleLoss: config.goldPerBattleLoss,
+});
 
 const gemini = new GeminiClient(
   config.geminiApiKey,
@@ -47,7 +56,6 @@ const game = new GameService(
   config.nickTimeZone,
   config.riddleItemChance,
   config.goldHintBuyCost,
-  config.goldHintWinnerTax,
 );
 
 const dailyNick = new DailyNickService(
@@ -94,6 +102,7 @@ if (itemEmojiMap) {
 
 const bot = new Bot(config.telegramBotToken);
 bot.use(logIncomingUpdates(config.logIncomingMessages));
+const battleRunner = new BattleAutoRunner(bot.api, repo, battle);
 registerHandlers(
   bot,
   game,
@@ -104,6 +113,7 @@ registerHandlers(
   wallet,
   shop,
   battle,
+  battleRunner,
   heroEmojiMap,
   itemEmojiMap,
 );
@@ -138,8 +148,19 @@ if (config.weeklyTitleEnabled) {
   setInterval(runWeeklyTitleJob, 60 * 60 * 1000);
 }
 
+const battlePickTimeoutMs = config.battlePickTimeoutMinutes * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const row of repo.listPendingBattles()) {
+    if (now - row.created_at >= battlePickTimeoutMs) {
+      void expirePendingBattle(bot.api, repo, battle, battleRunner, row.id);
+    }
+  }
+}, 60 * 1000);
+
 const shutdown = () => {
   console.log("Shutting down…");
+  battleRunner.stopAll();
   repo.close();
   process.exit(0);
 };
@@ -150,5 +171,6 @@ process.once("SIGTERM", shutdown);
 bot.start({
   onStart: (info) => {
     console.log(`Bot @${info.username} is running`);
+    battleRunner.resumeActive();
   },
 });

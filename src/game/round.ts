@@ -41,7 +41,11 @@ import {
   type GoldWinResult,
   type GoldConfig,
 } from "./economy/gold-rewards.js";
-import { recordChatUnlockOnWin, isEntityInMvpCatalog } from "./collection/unlocks.js";
+import { recordChatUnlockOnWin } from "./collection/unlocks.js";
+import { getMvpHeroIds } from "./catalog/catalog.js";
+
+const MVP_HERO_ID_SET = new Set(getMvpHeroIds());
+const SHOP_HERO_POOL = heroes.filter((h) => MVP_HERO_ID_SET.has(h.id));
 
 export type StartRoundResult =
   | {
@@ -100,7 +104,6 @@ export class GameService {
     private timeZone: string,
     private riddleItemChance: number,
     private goldHintBuyCost: number,
-    private goldHintWinnerTax: number,
   ) {}
 
   async startRound(
@@ -127,12 +130,12 @@ export class GameService {
 
     let history = this.repo.getRiddleHeroHistory(chatId);
     const uniqueUsed = new Set(history).size;
-    if (uniqueUsed >= heroes.length) {
+    if (uniqueUsed >= SHOP_HERO_POOL.length) {
       this.repo.clearRiddleHeroHistory(chatId);
       history = [];
     }
 
-    const hero = pickHeroForSession(history);
+    const hero = pickHeroForSession(history, SHOP_HERO_POOL);
     this.repo.addRiddleHeroToHistory(chatId, hero.id);
     let riddle: string;
     let aiVariants: string[] = [];
@@ -323,11 +326,6 @@ export class GameService {
       String(round.hero_id),
     );
 
-    if (round.hints_used > 0) {
-      const tax = round.hints_used * this.goldHintWinnerTax;
-      this.wallet.debitUpTo(userId, tax, "hint_winner_tax", chatId);
-    }
-
     this.repo.addWin(
       chatId,
       userId,
@@ -362,14 +360,12 @@ export class GameService {
       | { guessCount: number; required: number; newlyUnlocked: boolean }
       | undefined;
 
-    if (isEntityInMvpCatalog(targetType, round.hero_id)) {
-      unlockProgress = recordChatUnlockOnWin(
-        this.repo,
-        chatId,
-        targetType,
-        round.hero_id,
-      );
-    }
+    unlockProgress = recordChatUnlockOnWin(
+      this.repo,
+      chatId,
+      targetType,
+      round.hero_id,
+    );
 
     const unlockedAchievements =
       targetType === "hero"

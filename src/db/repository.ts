@@ -113,7 +113,15 @@ const SCORE_COLUMNS =
 export class Repository {
   private db: Database.Database;
 
-  constructor(databasePath: string) {
+  private readonly startingGold: number;
+  private readonly startingBattleMmr: number;
+
+  constructor(
+    databasePath: string,
+    walletDefaults?: { startingGold?: number; startingBattleMmr?: number },
+  ) {
+    this.startingGold = walletDefaults?.startingGold ?? 100;
+    this.startingBattleMmr = walletDefaults?.startingBattleMmr ?? 1000;
     const dir = dirname(databasePath);
     mkdirSync(dir, { recursive: true });
     this.db = new Database(databasePath);
@@ -1464,10 +1472,15 @@ export class Repository {
     const now = Date.now();
     this.db
       .prepare(
-        `INSERT INTO player_wallets (user_id, gold, battle_mmr, created_at) VALUES (?, 100, 1000, ?)`,
+        `INSERT INTO player_wallets (user_id, gold, battle_mmr, created_at) VALUES (?, ?, ?, ?)`,
       )
-      .run(userId, now);
-    return { user_id: userId, gold: 100, battle_mmr: 1000, created_at: now };
+      .run(userId, this.startingGold, this.startingBattleMmr, now);
+    return {
+      user_id: userId,
+      gold: this.startingGold,
+      battle_mmr: this.startingBattleMmr,
+      created_at: now,
+    };
   }
 
   adjustGold(
@@ -1746,7 +1759,10 @@ export class Repository {
     this.db
       .prepare(
         `INSERT INTO player_items (chat_id, user_id, slot, item_id, uses_remaining)
-         VALUES (?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(chat_id, user_id, slot) DO UPDATE SET
+           item_id = excluded.item_id,
+           uses_remaining = excluded.uses_remaining`,
       )
       .run(chatId, userId, slot, itemId, usesRemaining);
   }
@@ -1809,6 +1825,18 @@ export class Repository {
     return this.db
       .prepare(`SELECT * FROM battles WHERE chat_id = ?`)
       .get(chatId) as BattleRow | undefined;
+  }
+
+  listActiveBattles(): BattleRow[] {
+    return this.db
+      .prepare(`SELECT * FROM battles WHERE state = 'active'`)
+      .all() as BattleRow[];
+  }
+
+  listPendingBattles(): BattleRow[] {
+    return this.db
+      .prepare(`SELECT * FROM battles WHERE state = 'pick_defender'`)
+      .all() as BattleRow[];
   }
 
   updateBattle(

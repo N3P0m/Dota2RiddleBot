@@ -4,6 +4,13 @@ import { stripCustomEmojiHtml } from "../game/catalog/custom-emoji.js";
 
 export { isValidCustomEmojiId, stripCustomEmojiHtml } from "../game/catalog/custom-emoji.js";
 
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
 function isCustomEmojiSendError(err: unknown): boolean {
   if (!(err instanceof GrammyError)) return false;
   const d = err.description ?? "";

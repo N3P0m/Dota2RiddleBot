@@ -64,15 +64,23 @@ export const config = {
     5,
     Math.max(1, Number(process.env.FLOOD_TAUNTS_MAX_PER_HOUR ?? "2")),
   ),
-  startingGold: Number(process.env.STARTING_GOLD ?? "100"),
-  goldPerWin: Number(process.env.GOLD_PER_WIN ?? "15"),
-  goldHintBuyCost: Number(process.env.GOLD_HINT_BUY_COST ?? "8"),
-  goldHintWinnerTax: Number(process.env.GOLD_HINT_WINNER_TAX ?? "4"),
+  startingGold: Number(process.env.STARTING_GOLD ?? "80"),
+  goldPerWin: Number(process.env.GOLD_PER_WIN ?? "8"),
+  goldPerBattleWin: Number(process.env.GOLD_PER_BATTLE_WIN ?? "20"),
+  goldPerBattleLoss: Number(process.env.GOLD_PER_BATTLE_LOSS ?? "6"),
+  goldHintBuyCost: Number(process.env.GOLD_HINT_BUY_COST ?? "5"),
+  goldHintWinnerTax: Number(process.env.GOLD_HINT_WINNER_TAX ?? "2"),
+  itemRechargeRate: Number(process.env.ITEM_RECHARGE_RATE ?? "0.4"),
   riddleItemChance: Number(process.env.RIDDLE_ITEM_CHANCE ?? "0.15"),
   battleKFactor: Number(process.env.BATTLE_K_FACTOR ?? "25"),
   startingBattleMmr: Number(process.env.STARTING_BATTLE_MMR ?? "1000"),
   /** Тест: кнопка «Отменить бой» без штрафов */
   testBattleCancel: process.env.TEST_BATTLE_CANCEL === "true",
+  /** Таймаут ожидания выбора героя защитником (минуты) */
+  battlePickTimeoutMinutes: Math.min(
+    30,
+    Math.max(3, Number(process.env.BATTLE_PICK_TIMEOUT_MINUTES ?? "8")),
+  ),
   /** Доля цены при продаже героя (0.5 = 50%) */
   heroSellRefundRate: Number(process.env.HERO_SELL_REFUND_RATE ?? "0.5"),
   /** Dev: /emo-map — привязка custom emoji к героям (глобально для бота) */

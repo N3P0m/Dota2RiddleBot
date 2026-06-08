@@ -1,11 +1,13 @@
 import type { Context } from "grammy";
 import type { Repository } from "../db/repository.js";
 import type { ShopService } from "../game/collection/shop.js";
+import type { WalletService } from "../game/economy/wallet.js";
 import type { BattleService } from "../game/battle/service.js";
 import { getMvpHeroEntry } from "../game/catalog/catalog.js";
 import {
   formatCollectionList,
   formatHeroDetail,
+  formatShop,
   MENU_TEXT,
 } from "./collection-format.js";
 import {
@@ -13,6 +15,8 @@ import {
   keyboardCollectionList,
   keyboardHeroDetail,
   keyboardMenu,
+  keyboardShop,
+  type ShopViewMode,
 } from "./keyboards.js";
 import { chatId, userId } from "./actions.js";
 import { replyOrEditHtml } from "./telegram-html.js";
@@ -21,19 +25,66 @@ export async function executeMenu(ctx: Context): Promise<void> {
   await replyOrEditHtml(ctx, MENU_TEXT, keyboardMenu());
 }
 
+export async function showShop(
+  ctx: Context,
+  shop: ShopService,
+  wallet: WalletService,
+  repo: Repository,
+  viewMode: ShopViewMode = "compact",
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+  shop.ensureStarterHero(cid, uid);
+  const w = wallet.ensureWallet(uid);
+  const heroRows = shop.listShopHeroes(cid, uid).map((h) => ({
+    heroId: h.entry.hero_id,
+    price: h.entry.price,
+    owned: h.owned,
+    unlocked: h.unlocked,
+  }));
+  const itemRows = shop.listShopItems(cid, uid).map((i) => ({
+    itemId: i.item.id,
+    price: i.item.price,
+    unlocked: i.unlocked,
+    owned: i.owned,
+    canBuy: i.canBuy,
+  }));
+  const rechargeSlots = shop
+    .getPlayerItemSlots(cid, uid)
+    .filter(
+      (s) =>
+        s.itemId != null &&
+        s.usesRemaining != null &&
+        s.maxUses != null &&
+        s.usesRemaining < s.maxUses,
+    )
+    .map((s) => ({
+      slot: s.slot,
+      itemId: s.itemId!,
+      cost: shop.getRechargeCost(s.itemId!),
+    }));
+  await replyOrEditHtml(
+    ctx,
+    formatShop(shop, cid, uid, w.gold, viewMode),
+    keyboardShop(heroRows, itemRows, rechargeSlots, viewMode),
+  );
+}
+
 export async function executeCollection(
   ctx: Context,
   shop: ShopService,
   repo: Repository,
+  wallet?: WalletService,
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
   shop.ensureStarterHero(cid, uid);
 
+  const gold = wallet?.ensureWallet(uid).gold ?? 0;
   const rows = repo.getPlayerHeroes(cid, uid);
   await replyOrEditHtml(
     ctx,
-    formatCollectionList(repo, cid, uid),
+    formatCollectionList(repo, cid, uid, gold),
     keyboardCollectionList(rows.map((r) => r.hero_id)),
   );
 }
@@ -90,6 +141,7 @@ export async function handleHeroSell(
   repo: Repository,
   battle: BattleService,
   heroId: number,
+  wallet?: WalletService,
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
@@ -114,14 +166,15 @@ export async function handleHeroSell(
     text: `Продано: +${result.refund}g`,
   });
 
-  await executeCollection(ctx, shop, repo);
+  await executeCollection(ctx, shop, repo, wallet);
 }
 
 export async function handleCollectionBack(
   ctx: Context,
   shop: ShopService,
   repo: Repository,
+  wallet?: WalletService,
 ): Promise<void> {
   await ctx.answerCallbackQuery();
-  await executeCollection(ctx, shop, repo);
+  await executeCollection(ctx, shop, repo, wallet);
 }

@@ -1,5 +1,4 @@
 import { Bot, Context } from "grammy";
-import { config } from "../config.js";
 import type { GameService } from "../game/round.js";
 import type { DailyNickService } from "../game/daily-nick.js";
 import type { InsultService } from "../game/insults.js";
@@ -8,6 +7,7 @@ import type { Repository } from "../db/repository.js";
 import type { WalletService } from "../game/economy/wallet.js";
 import type { ShopService } from "../game/collection/shop.js";
 import type { BattleService } from "../game/battle/service.js";
+import type { BattleAutoRunner } from "./battle-auto.js";
 import { formatTodayRu } from "../game/nick-date.js";
 import type { AchievementId } from "../game/achievements.js";
 import { getActiveWeeklyTitle } from "../game/weekly-title.js";
@@ -27,6 +27,7 @@ import {
 } from "./actions.js";
 import {
   HELP_TEXT,
+  WELCOME_TEXT,
   formatDailyNick,
   formatMe,
   formatAchievementsList,
@@ -36,17 +37,17 @@ import {
   CB,
   keyboardAfterNick,
   keyboardAfterWin,
+  keyboardHub,
   keyboardMenu,
-  keyboardShop,
 } from "./keyboards.js";
 import {
   formatGoldProfile,
-  formatShop,
   MENU_TEXT,
 } from "./collection-format.js";
 import {
   executeCollection,
   executeMenu,
+  showShop,
   handleCollectionBack,
   handleCollectionHero,
   handleHeroSell,
@@ -68,12 +69,11 @@ import {
 } from "./item-emo-map-handlers.js";
 import {
   executeFightCommand,
-  handleBattleAction,
-  handleBattleItemUse,
   executeEndFight,
   executeFightMenu,
   executeFightPickOpponent,
   handleBattleCancel,
+  handleBattleDecline,
   handleBattlePick,
   startFightWithHero,
 } from "./battle-handlers.js";
@@ -92,11 +92,10 @@ function parseAnswerAttempt(text: string): string | null {
   return answer.length >= 2 ? answer : null;
 }
 
-function parseTopPeriod(text: string): LeaderboardPeriod | "battle" {
+function parseTopPeriod(text: string): LeaderboardPeriod {
   const arg = text.trim().split(/\s+/)[1]?.toLowerCase();
   if (arg === "week" || arg === "неделя") return "week";
   if (arg === "month" || arg === "месяц") return "month";
-  if (arg === "battle" || arg === "бой" || arg === "боёв") return "battle";
   return "all";
 }
 
@@ -212,15 +211,16 @@ export function registerHandlers(
   wallet: WalletService,
   shop: ShopService,
   battle: BattleService,
+  battleRunner: BattleAutoRunner,
   heroEmojiMap: HeroEmojiMapStore | null,
   itemEmojiMap: ItemEmojiMapStore | null,
 ): void {
   bot.command("help", async (ctx) => {
-    await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
+    await replyOrEditHtml(ctx, HELP_TEXT, keyboardMenu());
   });
 
   bot.command("start", async (ctx) => {
-    await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
+    await replyOrEditHtml(ctx, WELCOME_TEXT, keyboardMenu());
   });
 
   bot.command("riddle", async (ctx) => executeRiddle(ctx, game, insults, floodTaunts));
@@ -229,7 +229,7 @@ export function registerHandlers(
 
   bot.command("top", async (ctx) => {
     const period = parseTopPeriod(ctx.message?.text ?? "");
-    await executeTop(ctx, repo, period === "battle" ? "all" : period);
+    await executeTop(ctx, repo, period);
   });
 
   bot.command(["achievements", "ach"], async (ctx) => {
@@ -238,9 +238,11 @@ export function registerHandlers(
     const unlocked = repo
       .getUserAchievements(cid, uid)
       .map((a) => a.achievement_id);
-    await ctx.reply(formatAchievementsList(unlocked as AchievementId[]), {
-      parse_mode: "HTML",
-    });
+    await replyOrEditHtml(
+      ctx,
+      formatAchievementsList(unlocked as AchievementId[]),
+      keyboardHub(),
+    );
   });
 
   bot.command("cancel", async (ctx) => executeCancel(ctx, game));
@@ -250,32 +252,15 @@ export function registerHandlers(
     const uid = userId(ctx);
     const w = wallet.ensureWallet(uid);
     const points = repo.getUserScore(cid, uid)?.points ?? 0;
-    await ctx.reply(formatGoldProfile(w, points), { parse_mode: "HTML" });
+    await replyOrEditHtml(
+      ctx,
+      formatGoldProfile(w, points),
+      keyboardHub(),
+    );
   });
 
   bot.command("shop", async (ctx) => {
-    const cid = chatId(ctx);
-    const uid = userId(ctx);
-    shop.ensureStarterHero(cid, uid);
-    const w = wallet.ensureWallet(uid);
-    const heroRows = shop.listShopHeroes(cid, uid).map((h) => ({
-      heroId: h.entry.hero_id,
-      price: h.entry.price,
-      owned: h.owned,
-      unlocked: h.unlocked,
-    }));
-    const itemRows = shop.listShopItems(cid, uid).map((i) => ({
-      itemId: i.item.id,
-      price: i.item.price,
-      unlocked: i.unlocked,
-      owned: i.owned,
-      canBuy: i.canBuy,
-    }));
-    await replyOrEditHtml(
-      ctx,
-      formatShop(shop, cid, uid, w.gold),
-      keyboardShop(heroRows, itemRows),
-    );
+    await showShop(ctx, shop, wallet, repo);
   });
 
   bot.command("menu", async (ctx) => {
@@ -302,19 +287,19 @@ export function registerHandlers(
   });
 
   bot.command("collection", async (ctx) => {
-    await executeCollection(ctx, shop, repo);
+    await executeCollection(ctx, shop, repo, wallet);
   });
 
   bot.command("heroes", async (ctx) => {
-    await executeCollection(ctx, shop, repo);
+    await executeCollection(ctx, shop, repo, wallet);
   });
 
   bot.command("fight", async (ctx) => {
-    await executeFightCommand(ctx, battle, shop, repo);
+    await executeFightCommand(ctx, battle, shop, repo, wallet);
   });
 
   bot.command("endfight", async (ctx) => {
-    await executeEndFight(ctx, battle, repo);
+    await executeEndFight(ctx, battle, repo, battleRunner);
   });
 
   bot.command("nick", async (ctx) => {
@@ -331,9 +316,10 @@ export function registerHandlers(
       .getUserAchievements(cid, uid)
       .map((a) => a.achievement_id);
     const weeklyPrefix = getActiveWeeklyTitle(repo, cid, uid);
-    await ctx.reply(
+    await replyOrEditHtml(
+      ctx,
       formatMe(row, displayName(ctx), achievements as AchievementId[], weeklyPrefix),
-      { parse_mode: "HTML" },
+      keyboardHub(),
     );
   });
 
@@ -384,33 +370,22 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.SHOP, async (ctx) => {
     await ctx.answerCallbackQuery();
-    const cid = chatId(ctx);
-    const uid = userId(ctx);
-    shop.ensureStarterHero(cid, uid);
-    const w = wallet.ensureWallet(uid);
-    const heroRows = shop.listShopHeroes(cid, uid).map((h) => ({
-      heroId: h.entry.hero_id,
-      price: h.entry.price,
-      owned: h.owned,
-      unlocked: h.unlocked,
-    }));
-    const itemRows = shop.listShopItems(cid, uid).map((i) => ({
-      itemId: i.item.id,
-      price: i.item.price,
-      unlocked: i.unlocked,
-      owned: i.owned,
-      canBuy: i.canBuy,
-    }));
-    await replyOrEditHtml(
-      ctx,
-      formatShop(shop, cid, uid, w.gold),
-      keyboardShop(heroRows, itemRows),
-    );
+    await showShop(ctx, shop, wallet, repo);
+  });
+
+  bot.callbackQuery(CB.SHOP_FULL, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await showShop(ctx, shop, wallet, repo, "full");
+  });
+
+  bot.callbackQuery(CB.SHOP_AVAIL, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await showShop(ctx, shop, wallet, repo, "compact");
   });
 
   bot.callbackQuery(CB.COLLECTION, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeCollection(ctx, shop, repo);
+    await executeCollection(ctx, shop, repo, wallet);
   });
 
   bot.callbackQuery(CB.MENU, async (ctx) => {
@@ -419,7 +394,7 @@ export function registerHandlers(
   });
 
   bot.callbackQuery(CB.COL_BACK, async (ctx) => {
-    await handleCollectionBack(ctx, shop, repo);
+    await handleCollectionBack(ctx, shop, repo, wallet);
   });
 
   bot.callbackQuery(/^col_h:(\d+)$/, async (ctx) => {
@@ -427,7 +402,7 @@ export function registerHandlers(
   });
 
   bot.callbackQuery(/^col_sell:(\d+)$/, async (ctx) => {
-    await handleHeroSell(ctx, shop, repo, battle, Number(ctx.match![1]));
+    await handleHeroSell(ctx, shop, repo, battle, Number(ctx.match![1]), wallet);
   });
 
   bot.callbackQuery(/^emo_map:(\d+)$/, async (ctx) => {
@@ -474,7 +449,7 @@ export function registerHandlers(
 
   bot.callbackQuery(CB.FIGHT, async (ctx) => {
     await ctx.answerCallbackQuery();
-    await executeFightMenu(ctx, battle, shop, repo);
+    await executeFightMenu(ctx, battle, shop, repo, wallet);
   });
 
   bot.callbackQuery(/^fight_vs:(.+)$/, async (ctx) => {
@@ -484,11 +459,6 @@ export function registerHandlers(
       repo,
       ctx.match![1]!,
     );
-  });
-
-  bot.callbackQuery(CB.TOP_BATTLE, async (ctx) => {
-    await ctx.answerCallbackQuery();
-    await executeTop(ctx, repo, "all");
   });
 
   bot.callbackQuery(/^shop_h:(\d+)$/, async (ctx) => {
@@ -510,6 +480,7 @@ export function registerHandlers(
       return;
     }
     await ctx.answerCallbackQuery({ text: `Куплен: ${result.name}` });
+    await showShop(ctx, shop, wallet, repo);
   });
 
   bot.callbackQuery(/^shop_i:(\d+)$/, async (ctx) => {
@@ -521,7 +492,32 @@ export function registerHandlers(
       const msgs: Record<string, string> = {
         not_unlocked: "Предмет не разблокирован чатом.",
         already_owned: "Предмет уже куплен.",
-        slots_full: "Все 3 слота заняты.",
+        slots_full: "Все слоты заняты.",
+        insufficient_gold: "Не хватает золота.",
+        not_in_catalog: "Нет в каталоге.",
+        level_too_low: "Нужен более высокий уровень героя.",
+        mmr_too_low: "Нужен более высокий рейтинг чата.",
+        tier_locked: "Тир предмета пока недоступен.",
+      };
+      await ctx.answerCallbackQuery({
+        text: msgs[result.reason] ?? "Ошибка",
+        show_alert: true,
+      });
+      return;
+    }
+    await ctx.answerCallbackQuery({ text: `Куплен: ${result.name}` });
+    await showShop(ctx, shop, wallet, repo);
+  });
+
+  bot.callbackQuery(/^shop_r:(\d+)$/, async (ctx) => {
+    const slot = Number(ctx.match![1]);
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    const result = shop.rechargeItem(cid, uid, slot);
+    if (!result.ok) {
+      const msgs: Record<string, string> = {
+        empty_slot: "Слот пуст.",
+        full_uses: "Использования уже полные.",
         insufficient_gold: "Не хватает золота.",
         not_in_catalog: "Нет в каталоге.",
       };
@@ -531,7 +527,10 @@ export function registerHandlers(
       });
       return;
     }
-    await ctx.answerCallbackQuery({ text: `Куплен: ${result.name}` });
+    await ctx.answerCallbackQuery({
+      text: `Перезарядка: ${result.name} (−${result.cost}g)`,
+    });
+    await showShop(ctx, shop, wallet, repo);
   });
 
   bot.callbackQuery(/^fight_ch:([^:]+):(\d+)$/, async (ctx) => {
@@ -543,33 +542,27 @@ export function registerHandlers(
   bot.callbackQuery(/^btl_pick:(\d+):(\d+)$/, async (ctx) => {
     const battleId = Number(ctx.match![1]);
     const heroId = Number(ctx.match![2]);
-    await handleBattlePick(ctx, battle, repo, battleId, heroId);
-  });
-
-  bot.callbackQuery(/^btl_item:(\d+):(ch|def):(\d+)$/, async (ctx) => {
-    const battleId = Number(ctx.match![1]);
-    const side = ctx.match![2] as "ch" | "def";
-    const itemId = Number(ctx.match![3]);
-    await handleBattleItemUse(ctx, battle, repo, battleId, itemId, side);
-  });
-
-  bot.callbackQuery(/^btl:(\d+):(ch|def):(\w+)$/, async (ctx) => {
-    const battleId = Number(ctx.match![1]);
-    const side = ctx.match![2] as "ch" | "def";
-    const action = ctx.match![3]!;
-    await handleBattleAction(ctx, battle, repo, battleId, action, side);
+    await handleBattlePick(ctx, battle, repo, battleRunner, battleId, heroId);
   });
 
   bot.callbackQuery(/^btl_cancel:(\d+)$/, async (ctx) => {
-    if (!config.testBattleCancel) {
-      await ctx.answerCallbackQuery({ text: "Отключено" });
-      return;
-    }
-    await handleBattleCancel(ctx, battle, repo, Number(ctx.match![1]));
+    await handleBattleCancel(
+      ctx,
+      battle,
+      repo,
+      battleRunner,
+      Number(ctx.match![1]),
+    );
   });
 
-  bot.callbackQuery("btl_nop", async (ctx) => {
-    await ctx.answerCallbackQuery();
+  bot.callbackQuery(/^btl_decline:(\d+)$/, async (ctx) => {
+    await handleBattleDecline(
+      ctx,
+      battle,
+      repo,
+      battleRunner,
+      Number(ctx.match![1]),
+    );
   });
 
   if (heroEmojiMap || itemEmojiMap) {

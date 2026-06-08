@@ -7,6 +7,8 @@ import {
   PLAYER_ITEM_SLOTS,
   getMvpHeroEntry,
   getItemById,
+  maxItemSlotsForLevel,
+  maxItemTierForLevel,
 } from "../catalog/catalog.js";
 import { getHeroById } from "../../heroes/match.js";
 
@@ -42,7 +44,21 @@ export type ShopBuyResult =
         | "slots_full"
         | "insufficient_gold"
         | "not_in_catalog"
-        | "no_hero";
+        | "no_hero"
+        | "level_too_low"
+        | "mmr_too_low"
+        | "tier_locked";
+    };
+
+export type RechargeItemResult =
+  | { ok: true; name: string; cost: number; usesRestored: number }
+  | {
+      ok: false;
+      reason:
+        | "empty_slot"
+        | "full_uses"
+        | "insufficient_gold"
+        | "not_in_catalog";
     };
 
 export class ShopService {
@@ -56,6 +72,67 @@ export class ShopService {
     if (!existing) {
       this.repo.addPlayerHero(chatId, userId, STARTER_HERO_ID);
     }
+  }
+
+  getMaxHeroLevel(chatId: string, userId: string): number {
+    const heroes = this.repo.getPlayerHeroes(chatId, userId);
+    if (heroes.length === 0) return 1;
+    return Math.max(...heroes.map((h) => h.level));
+  }
+
+  getChatPoints(chatId: string, userId: string): number {
+    return this.repo.getUserScore(chatId, userId)?.points ?? 0;
+  }
+
+  getMaxItemSlots(chatId: string, userId: string): number {
+    return maxItemSlotsForLevel(this.getMaxHeroLevel(chatId, userId));
+  }
+
+  getRechargeCost(itemId: number): number {
+    const item = getItemById(itemId);
+    if (!item) return 0;
+    return Math.floor(item.price * config.itemRechargeRate);
+  }
+
+  private findFirstEmptyItemSlot(
+    chatId: string,
+    userId: string,
+    maxSlots: number,
+  ): number | null {
+    const used = new Set(
+      this.repo.getPlayerItemSlots(chatId, userId).map((r) => r.slot),
+    );
+    for (let slot = 0; slot < maxSlots; slot++) {
+      if (!used.has(slot)) return slot;
+    }
+    return null;
+  }
+
+  private checkItemBuyGates(
+    chatId: string,
+    userId: string,
+    item: NonNullable<ReturnType<typeof getItemById>>,
+  ): Extract<ShopBuyResult, { ok: false }> | null {
+    const maxLevel = this.getMaxHeroLevel(chatId, userId);
+    if (maxLevel < item.min_hero_level) {
+      return { ok: false, reason: "level_too_low" };
+    }
+
+    const points = this.getChatPoints(chatId, userId);
+    if (points < item.min_mmr) {
+      return { ok: false, reason: "mmr_too_low" };
+    }
+
+    if (item.tier > maxItemTierForLevel(maxLevel)) {
+      return { ok: false, reason: "tier_locked" };
+    }
+
+    const maxSlots = maxItemSlotsForLevel(maxLevel);
+    if (this.repo.countFilledItemSlots(chatId, userId) >= maxSlots) {
+      return { ok: false, reason: "slots_full" };
+    }
+
+    return null;
   }
 
   buyHero(
@@ -120,7 +197,11 @@ export class ShopService {
       return { ok: false, reason: "already_owned" };
     }
 
-    const emptySlot = this.repo.findFirstEmptyItemSlot(chatId, userId);
+    const blocked = this.checkItemBuyGates(chatId, userId, item);
+    if (blocked) return blocked;
+
+    const maxSlots = this.getMaxItemSlots(chatId, userId);
+    const emptySlot = this.findFirstEmptyItemSlot(chatId, userId, maxSlots);
     if (emptySlot == null) {
       return { ok: false, reason: "slots_full" };
     }
@@ -144,7 +225,49 @@ export class ShopService {
     return { ok: true, kind: "item", name: item.name_ru };
   }
 
+  rechargeItem(
+    chatId: string,
+    userId: string,
+    slot: number,
+  ): RechargeItemResult {
+    const rows = this.repo.getPlayerItemSlots(chatId, userId);
+    const row = rows.find((r) => r.slot === slot);
+    if (!row) return { ok: false, reason: "empty_slot" };
+
+    const item = getItemById(row.item_id);
+    if (!item) return { ok: false, reason: "not_in_catalog" };
+
+    if (row.uses_remaining >= item.max_uses) {
+      return { ok: false, reason: "full_uses" };
+    }
+
+    const cost = this.getRechargeCost(row.item_id);
+    const debit = this.wallet.debit(
+      userId,
+      cost,
+      "item_recharge",
+      chatId,
+      String(row.item_id),
+    );
+    if (!debit.ok) return { ok: false, reason: "insufficient_gold" };
+
+    this.repo.setPlayerItemSlot(
+      chatId,
+      userId,
+      slot,
+      row.item_id,
+      item.max_uses,
+    );
+    return {
+      ok: true,
+      name: item.name_ru,
+      cost,
+      usesRestored: item.max_uses,
+    };
+  }
+
   getPlayerItemSlots(chatId: string, userId: string): PlayerItemSlotView[] {
+    const maxSlots = this.getMaxItemSlots(chatId, userId);
     const rows = this.repo.getPlayerItemSlots(chatId, userId);
     const bySlot = new Map(rows.map((r) => [r.slot, r]));
     const slots: PlayerItemSlotView[] = [];
@@ -152,7 +275,10 @@ export class ShopService {
     for (let slot = 0; slot < PLAYER_ITEM_SLOTS; slot++) {
       const row = bySlot.get(slot);
       if (!row) {
-        slots.push({ slot });
+        slots.push({
+          slot,
+          ...(slot < maxSlots ? {} : { name: "🔒" }),
+        });
         continue;
       }
       const item = getItemById(row.item_id);
@@ -228,8 +354,13 @@ export class ShopService {
   }
 
   listShopItems(chatId: string, userId: string) {
+    const maxLevel = this.getMaxHeroLevel(chatId, userId);
+    const maxSlots = maxItemSlotsForLevel(maxLevel);
+    const maxTier = maxItemTierForLevel(maxLevel);
+    const points = this.getChatPoints(chatId, userId);
     const slotsFull =
-      this.repo.countFilledItemSlots(chatId, userId) >= PLAYER_ITEM_SLOTS;
+      this.repo.countFilledItemSlots(chatId, userId) >= maxSlots;
+
     return MVP_ITEMS.map((item) => {
       const unlock = this.repo.getChatUnlock(chatId, "item", item.id);
       const owned = this.repo.ownsItem(chatId, userId, item.id);
@@ -239,12 +370,29 @@ export class ShopService {
         item.id,
         item.required_guesses,
       );
+
+      let blockReason:
+        | "slots_full"
+        | "level_too_low"
+        | "mmr_too_low"
+        | "tier_locked"
+        | undefined;
+      if (unlocked && !owned) {
+        if (maxLevel < item.min_hero_level) blockReason = "level_too_low";
+        else if (points < item.min_mmr) blockReason = "mmr_too_low";
+        else if (item.tier > maxTier) blockReason = "tier_locked";
+        else if (slotsFull) blockReason = "slots_full";
+      }
+
       return {
         item,
         guessCount: unlock?.guess_count ?? 0,
         unlocked,
         owned,
-        canBuy: unlocked && !owned && !slotsFull,
+        canBuy: unlocked && !owned && !blockReason,
+        blockReason,
+        maxLevel,
+        chatPoints: points,
       };
     });
   }

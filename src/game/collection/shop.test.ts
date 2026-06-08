@@ -86,10 +86,25 @@ describe("shop item slots", () => {
     wallet.credit(userId, gold, "test");
   }
 
+  function ensureHeroLevel(
+    chatId: string,
+    userId: string,
+    heroId: number,
+    level: number,
+  ): void {
+    repo.addPlayerHero(chatId, userId, heroId);
+    const targetXp = Math.max(0, (level - 1) * 50);
+    const current = repo.getPlayerHero(chatId, userId, heroId)!.xp;
+    if (targetXp > current) {
+      repo.addHeroXp(chatId, userId, heroId, targetXp - current);
+    }
+  }
+
   it("buys item into first free slot with full uses", () => {
     const chatId = "-100";
     const userId = "u1";
     fund(userId, 200);
+    ensureHeroLevel(chatId, userId, 14, 1);
     unlockItem(chatId, 1);
 
     const result = shop.buyItem(chatId, userId, 1);
@@ -105,6 +120,7 @@ describe("shop item slots", () => {
     const chatId = "-100";
     const userId = "u1";
     fund(userId, 500);
+    ensureHeroLevel(chatId, userId, 14, 3);
     unlockItem(chatId, 1);
     unlockItem(chatId, 2);
 
@@ -114,10 +130,25 @@ describe("shop item slots", () => {
     if (!dup.ok) assert.equal(dup.reason, "already_owned");
   });
 
-  it("cannot buy when all 3 slots are full", () => {
+  it("limits slots by hero level", () => {
     const chatId = "-100";
     const userId = "u1";
     fund(userId, 500);
+    ensureHeroLevel(chatId, userId, 14, 1);
+    unlockItem(chatId, 1);
+    unlockItem(chatId, 2);
+
+    assert.equal(shop.buyItem(chatId, userId, 1).ok, true);
+    const full = shop.buyItem(chatId, userId, 2);
+    assert.equal(full.ok, false);
+    if (!full.ok) assert.equal(full.reason, "slots_full");
+  });
+
+  it("allows more slots at higher hero level", () => {
+    const chatId = "-100";
+    const userId = "u1";
+    fund(userId, 500);
+    ensureHeroLevel(chatId, userId, 14, 8);
     for (const id of [1, 2, 3]) {
       unlockItem(chatId, id);
       assert.equal(shop.buyItem(chatId, userId, id).ok, true);
@@ -126,5 +157,37 @@ describe("shop item slots", () => {
     const full = shop.buyItem(chatId, userId, 4);
     assert.equal(full.ok, false);
     if (!full.ok) assert.equal(full.reason, "slots_full");
+  });
+
+  it("blocks tier 3 items without hero level", () => {
+    const chatId = "-100";
+    const userId = "u1";
+    fund(userId, 500);
+    ensureHeroLevel(chatId, userId, 14, 3);
+    unlockItem(chatId, 8);
+
+    const blocked = shop.buyItem(chatId, userId, 8);
+    assert.equal(blocked.ok, false);
+    if (!blocked.ok) assert.equal(blocked.reason, "level_too_low");
+  });
+
+  it("recharges item uses for gold", () => {
+    const chatId = "-100";
+    const userId = "u1";
+    fund(userId, 500);
+    ensureHeroLevel(chatId, userId, 14, 1);
+    unlockItem(chatId, 1);
+    assert.equal(shop.buyItem(chatId, userId, 1).ok, true);
+
+    repo.setPlayerItemSlot(chatId, userId, 0, 1, 0);
+    const before = wallet.ensureWallet(userId).gold;
+    const result = shop.rechargeItem(chatId, userId, 0);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.cost, 4);
+    assert.equal(wallet.ensureWallet(userId).gold, before - 4);
+
+    const slots = shop.getPlayerItemSlots(chatId, userId);
+    assert.equal(slots[0]?.usesRemaining, 3);
   });
 });

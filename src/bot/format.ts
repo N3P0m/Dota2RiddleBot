@@ -1,4 +1,6 @@
+import { config } from "../config.js";
 import type { PeriodLeaderboardRow, ScoreRow } from "../db/repository.js";
+import { escapeHtml } from "./telegram-html.js";
 import type { AchievementId } from "../game/achievements.js";
 import {
   formatAchievementAnnounce,
@@ -43,6 +45,12 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 
 export type LeaderboardPeriod = "all" | "week" | "month";
 
+export const WELCOME_TEXT =
+  `🎮 <b>Угадай героя Dota 2</b>\n\n` +
+  `Ответ в чат: <code>!имя</code> (RU/EN).\n` +
+  `Все действия — кнопками ниже.\n\n` +
+  `<i>Полная справка: /help</i>`;
+
 export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 
 <b>Команды:</b>
@@ -57,14 +65,14 @@ export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 /fight — вызов на бой (кнопки соперников)
 /endfight — завершить активный PvP-бой
 /nick — дотаник на сегодня
-/top — рейтинг чата (загадки + бои)
+/top — рейтинг чата (очки за загадки и бои)
 /me — профиль · /achievements — достижения
 /cancel — сдаться
 /help — справка
 
-<b>Золото:</b> старт 100, награды за победы, тратится на подсказки и магазин.
+<b>Золото:</b> старт ${config.startingGold}, награды за победы, тратится на подсказки и магазин.
 <b>Коллекция:</b> чат разблокирует героев/предметы угадываниями, покупка за золото.
-<b>Бои:</b> кнопка «Вызвать на бой» или /fight — выбор соперника и героя.
+<b>Бои:</b> /fight — выбор соперника и героя, дальше бой идёт сам (ходы случайно, раз в 2 с).
 
 <b>Ответ:</b> <code>!имя</code> или <code>!бкб</code>`;
 
@@ -384,10 +392,3 @@ export function formatAchievementMessages(
 }
 
 export { formatAchievementsList };
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}

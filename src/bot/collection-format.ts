@@ -5,6 +5,7 @@ import { formatGold } from "../game/economy/gold-rewards.js";
 import {
   getCombatHero,
   getMvpHeroEntry,
+  maxItemTierForLevel,
   PLAYER_ITEM_SLOTS,
 } from "../game/catalog/catalog.js";
 import { formatItemEmojiHtml } from "../game/catalog/item-emoji.js";
@@ -20,30 +21,13 @@ import { formatHeroLevelProgress } from "../game/collection/hero-progress.js";
 import { formatTitleLine, getTitleByPoints } from "../game/titles.js";
 import { formatPoints } from "../game/scoring.js";
 import { HELP_TEXT } from "./format.js";
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+import { escapeHtml } from "./telegram-html.js";
+import type { ShopViewMode } from "./keyboards.js";
 
 export const MENU_TEXT =
   `📋 <b>Меню игры</b>\n\n` +
-  `<b>Викторина</b>\n` +
-  `/riddle — загадка · /emo_riddle — эмо-загадка\n` +
-  `/hint — подсказка · /cancel — сдаться\n\n` +
-  `<b>Экономика и коллекция</b>\n` +
-  `/gold — баланс · /shop — магазин\n` +
-  `/heroes — герои и статы\n` +
-  `/collection — то же, что /heroes\n\n` +
-  `<b>Бои</b>\n` +
-  `/fight — вызов · /endfight — завершить бой\n` +
-  `/top — рейтинг чата (загадки + бои)\n\n` +
-  `<b>Профиль</b>\n` +
-  `/nick — дотаник · /me — профиль\n` +
-  `/top — топ чата · /achievements\n\n` +
-  `/help — полные правила`;
+  `<i>Выберите действие кнопками ниже.</i>\n` +
+  `<i>Полный список команд — /help</i>`;
 
 export function formatGoldProfile(
   wallet: { gold: number },
@@ -62,51 +46,85 @@ export function formatShop(
   chatId: string,
   userId: string,
   gold: number,
+  viewMode: ShopViewMode = "compact",
 ): string {
   const heroes = shop.listShopHeroes(chatId, userId);
   const items = shop.listShopItems(chatId, userId);
   const slots = shop.getPlayerItemSlots(chatId, userId);
+  const maxSlots = shop.getMaxItemSlots(chatId, userId);
+  const maxLevel = shop.getMaxHeroLevel(chatId, userId);
 
-  const heroLines = heroes.map(({ entry, hero, guessCount, unlocked, owned }) => {
-    const name = hero?.name_ru ?? `#${entry.hero_id}`;
-    const badge = formatHeroEmojiHtml(entry.hero_id);
-    if (owned) {
-      return `✅ ${badge} ${escapeHtml(name)} — куплен`;
-    }
-    if (!unlocked) {
-      return `🔒 ${badge} ${escapeHtml(name)} — ${guessCount}/${entry.required_guesses} угадываний`;
-    }
-    const price = entry.price === 0 ? "бесплатно" : `${entry.price}💰`;
-    return `🛒 ${badge} ${escapeHtml(name)} — ${price}`;
-  });
+  const heroLines = heroes
+    .filter(({ unlocked, owned }) => viewMode === "full" || unlocked || owned)
+    .map(({ entry, hero, guessCount, unlocked, owned }) => {
+      const name = hero?.name_ru ?? `#${entry.hero_id}`;
+      const badge = formatHeroEmojiHtml(entry.hero_id);
+      if (owned) {
+        return viewMode === "compact" ? null : `✅ ${badge} ${escapeHtml(name)} — куплен`;
+      }
+      if (!unlocked) {
+        return `🔒 ${badge} ${escapeHtml(name)} — ${guessCount}/${entry.required_guesses} угадываний`;
+      }
+      const price = entry.price === 0 ? "бесплатно" : `${entry.price}💰`;
+      return `🛒 ${badge} ${escapeHtml(name)} — ${price}`;
+    })
+    .filter((line): line is string => line != null);
 
   const slotLines = slots.map((s) => {
     const num = s.slot + 1;
+    if (s.slot >= maxSlots) {
+      return `[${num}] 🔒 нужен ур. ${s.slot < 2 ? 3 : 8} героя`;
+    }
     if (!s.itemId) return `[${num}] ➕ пусто`;
     const emoji = formatItemEmojiHtml(s.itemId);
-    return `[${num}] ${emoji} ${escapeHtml(s.name ?? "")} · ${s.usesRemaining}/${s.maxUses}`;
+    const rechargeCost = shop.getRechargeCost(s.itemId);
+    const needsRecharge =
+      s.usesRemaining != null && s.maxUses != null && s.usesRemaining < s.maxUses;
+    const rechargeHint = needsRecharge ? ` · 🔋 ${rechargeCost}g` : "";
+    return `[${num}] ${emoji} ${escapeHtml(s.name ?? "")} · ${s.usesRemaining}/${s.maxUses}${rechargeHint}`;
   });
 
-  const itemLines = items.map(({ item, guessCount, unlocked, owned, canBuy }) => {
-    const emoji = formatItemEmojiHtml(item.id);
-    if (owned) {
-      return `✅ ${emoji} ${escapeHtml(item.name_ru)} — куплен`;
-    }
-    if (!unlocked) {
-      return `🔒 ${emoji} ${escapeHtml(item.name_ru)} — ${guessCount}/${item.required_guesses}`;
-    }
-    if (!canBuy) {
-      return `⛔ ${emoji} ${escapeHtml(item.name_ru)} — слоты заняты (${PLAYER_ITEM_SLOTS}/${PLAYER_ITEM_SLOTS})`;
-    }
-    return `🛒 ${emoji} ${escapeHtml(item.name_ru)} — ${item.price}💰 (T${item.tier}, ${item.max_uses} исп.)`;
-  });
+  const blockLabels: Record<string, string> = {
+    slots_full: `слоты заняты (${maxSlots}/${PLAYER_ITEM_SLOTS})`,
+    level_too_low: `нужен ур. героя выше (сейчас ${maxLevel})`,
+    mmr_too_low: "нужен рейтинг чата выше",
+    tier_locked: `T${maxItemTierForLevel(maxLevel)}+ недоступен`,
+  };
+
+  const itemLines = items
+    .filter(({ unlocked, owned, canBuy }) => viewMode === "full" || unlocked || owned || canBuy)
+    .map(({ item, guessCount, unlocked, owned, canBuy, blockReason }) => {
+      const emoji = formatItemEmojiHtml(item.id);
+      if (owned) {
+        return viewMode === "compact" ? null : `✅ ${emoji} ${escapeHtml(item.name_ru)} — куплен`;
+      }
+      if (!unlocked) {
+        return `🔒 ${emoji} ${escapeHtml(item.name_ru)} — ${guessCount}/${item.required_guesses}`;
+      }
+      if (!canBuy && blockReason) {
+        return `⛔ ${emoji} ${escapeHtml(item.name_ru)} — ${blockLabels[blockReason] ?? blockReason}`;
+      }
+      return `🛒 ${emoji} ${escapeHtml(item.name_ru)} — ${item.price}💰 (T${item.tier}, ${item.max_uses} исп.)`;
+    })
+    .filter((line): line is string => line != null);
+
+  const viewLabel =
+    viewMode === "compact" ? "доступное" : "весь каталог";
+
+  const lockedHeroCount = heroes.filter((h) => !h.unlocked && !h.owned).length;
+  const lockedItemCount = items.filter((i) => !i.unlocked && !i.owned).length;
+  const lockedNote =
+    viewMode === "compact" && (lockedHeroCount > 0 || lockedItemCount > 0)
+      ? `\n<i>🔒 Ещё ${lockedHeroCount} героев и ${lockedItemCount} предметов — кнопка «Весь каталог».</i>`
+      : "";
 
   return (
-    `🏪 <b>Магазин чата</b> · у вас <b>${gold}</b> ${formatGold(1).split(" ")[1]}\n\n` +
-    `<b>Ваши слоты предметов</b> (макс. ${PLAYER_ITEM_SLOTS}):\n${slotLines.join("\n")}\n\n` +
-    `<b>Герои:</b>\n${heroLines.join("\n")}\n\n` +
-    `<b>Предметы:</b>\n${itemLines.join("\n")}\n\n` +
-    `<i>Каждый предмет покупается один раз. Использования тратятся в бою.</i>`
+    `🏪 <b>Магазин чата</b> · <b>${gold}</b>💰 · <i>${viewLabel}</i>\n\n` +
+    `<b>Слоты предметов</b> (${maxSlots}/${PLAYER_ITEM_SLOTS}, ур. героя ${maxLevel}):\n${slotLines.join("\n")}\n\n` +
+    `<b>Герои:</b>\n${heroLines.length > 0 ? heroLines.join("\n") : "<i>Нет доступных</i>"}\n\n` +
+    `<b>Предметы:</b>\n${itemLines.length > 0 ? itemLines.join("\n") : "<i>Нет доступных</i>"}` +
+    `${lockedNote}\n\n` +
+    `<i>Каждый предмет покупается один раз. Использования тратятся в бою; перезарядка — кнопкой 🔋.</i>`
   );
 }
 
@@ -114,6 +132,7 @@ export function formatCollectionList(
   repo: Repository,
   chatId: string,
   userId: string,
+  gold = 0,
 ): string {
   const rows = repo.getPlayerHeroes(chatId, userId);
   if (rows.length === 0) {
@@ -129,9 +148,9 @@ export function formatCollectionList(
   });
 
   return (
-    `📦 <b>Ваши герои</b> · выберите для статов\n\n` +
+    `📦 <b>Коллекция</b> · ${rows.length} героев · <b>${gold}</b>💰\n\n` +
     `${lines.join("\n")}\n\n` +
-    `<i>Предметы — в /shop (3 слота на игрока). Продажа героя — 50% цены.</i>`
+    `<i>Выберите героя для статов. Предметы — в /shop. Продажа — 50% цены.</i>`
   );
 }
 

@@ -1,22 +1,28 @@
-import type { Context, InlineKeyboard } from "grammy";
+import type { Context } from "grammy";
 import type { BattleService } from "../game/battle/service.js";
 import type { ShopService } from "../game/collection/shop.js";
 import type { Repository } from "../db/repository.js";
+import type { WalletService } from "../game/economy/wallet.js";
+import type { BattleAutoRunner } from "./battle-auto.js";
 import {
+  formatBattleFightHeader,
   formatBattleMessage,
   formatBattlePickHero,
-  formatBattleResult,
+  formatChallengeSent,
   formatFightPickHero,
+  formatUserMentionHtml,
 } from "../game/battle/format.js";
+import { formatPoints } from "../game/scoring.js";
+import { formatTitleLine, getTitleByPoints } from "../game/titles.js";
 import {
-  keyboardBattleActions,
+  keyboardChallengePending,
   keyboardFightOpponents,
   keyboardPickHero,
   keyboardPickHeroForFight,
 } from "./keyboards.js";
 import { chatId, userId } from "./actions.js";
-import { getCombatHero, getItemById } from "../game/catalog/catalog.js";
-import { formatActionLabel } from "../game/battle/engine.js";
+import { getCombatHero } from "../game/catalog/catalog.js";
+import { replyHtml, replyOrEditHtml } from "./telegram-html.js";
 
 function hasCombatHeroes(repo: Repository, chatId: string, uid: string): boolean {
   return repo
@@ -42,23 +48,31 @@ function listFightOpponents(
     }));
 }
 
-async function editOrReply(
-  ctx: Context,
-  text: string,
-  replyMarkup?: InlineKeyboard,
-): Promise<void> {
-  if (ctx.callbackQuery?.message) {
-    try {
-      await ctx.editMessageText(text, {
-        parse_mode: "HTML",
-        reply_markup: replyMarkup,
-      });
-      return;
-    } catch {
-      /* fallback */
-    }
+function formatFightMenuHeader(
+  repo: Repository,
+  cid: string,
+  uid: string,
+  gold: number,
+): string {
+  const points = repo.getUserScore(cid, uid)?.points ?? 0;
+  const title = getTitleByPoints(points);
+  return (
+    `⚔️ <b>Кого вызываем на бой?</b>\n` +
+    `<i>${formatTitleLine(title, points)} · ${formatPoints(points)} · ${gold}💰</i>\n\n` +
+    `<i>Выберите соперника, затем своего героя.</i>`
+  );
+}
+
+async function finalizePickMessage(ctx: Context, doneText: string): Promise<void> {
+  if (!ctx.callbackQuery?.message) return;
+  try {
+    await ctx.editMessageText(doneText, {
+      parse_mode: "HTML",
+      link_preview_options: { is_disabled: true },
+    });
+  } catch {
+    /* already edited */
   }
-  await ctx.reply(text, { parse_mode: "HTML", reply_markup: replyMarkup });
 }
 
 export async function executeFightMenu(
@@ -66,13 +80,42 @@ export async function executeFightMenu(
   battle: BattleService,
   shop: ShopService,
   repo: Repository,
+  wallet?: WalletService,
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
   shop.ensureStarterHero(cid, uid);
 
+  const pending = repo.getBattleByChat(cid);
+  if (pending && pending.state === "pick_defender") {
+    const chName = playerName(repo, cid, pending.challenger_id);
+    const defName = playerName(repo, cid, pending.defender_id);
+    const isChallenger = uid === pending.challenger_id;
+    const isDefender = uid === pending.defender_id;
+    let text =
+      `⏳ <b>Ожидание ответа защитника</b>\n\n` +
+      `${formatUserMentionHtml(pending.challenger_id, chName)} вызвал ` +
+      `${formatUserMentionHtml(pending.defender_id, defName)}.\n\n`;
+    if (isChallenger) {
+      text += `<i>Можно отменить вызов кнопкой ниже или /endfight.</i>`;
+      await replyOrEditHtml(
+        ctx,
+        text,
+        keyboardChallengePending(pending.id),
+      );
+      return;
+    }
+    if (isDefender) {
+      text += `<i>Выберите героя в сообщении вызова выше.</i>`;
+    } else {
+      text += `<i>Дождитесь выбора героя или /endfight.</i>`;
+    }
+    await replyOrEditHtml(ctx, text);
+    return;
+  }
+
   if (battle.hasActiveBattle(cid)) {
-    await editOrReply(
+    await replyOrEditHtml(
       ctx,
       "⏳ В чате уже идёт бой. Дождитесь окончания или /endfight.",
     );
@@ -80,22 +123,26 @@ export async function executeFightMenu(
   }
 
   if (!hasCombatHeroes(repo, cid, uid)) {
-    await editOrReply(ctx, "Нет героев для боя. Откройте /shop и возьмите Пуджа.");
+    await replyOrEditHtml(
+      ctx,
+      "Нет героев для боя. Откройте /shop и возьмите Пуджа.",
+    );
     return;
   }
 
   const opponents = listFightOpponents(repo, cid, uid);
   if (opponents.length === 0) {
-    await editOrReply(
+    await replyOrEditHtml(
       ctx,
       "В чате пока нет других игроков с героями.\nПусть кто-нибудь откроет /shop — тогда появятся кнопки соперников.",
     );
     return;
   }
 
-  await editOrReply(
+  const gold = wallet?.ensureWallet(uid).gold ?? 0;
+  await replyOrEditHtml(
     ctx,
-    "⚔️ <b>Кого вызываем на бой?</b>\n\n<i>Выберите соперника, затем своего героя.</i>",
+    formatFightMenuHeader(repo, cid, uid, gold),
     keyboardFightOpponents(opponents),
   );
 }
@@ -138,9 +185,9 @@ export async function executeFightPickOpponent(
 
   await ctx.answerCallbackQuery();
 
-  await editOrReply(
+  await replyOrEditHtml(
     ctx,
-    formatFightPickHero(targetName, challengerName),
+    formatFightPickHero(challengerName, targetName),
     keyboardPickHeroForFight(
       heroes.map((h) => h.hero_id),
       targetUserId,
@@ -191,7 +238,7 @@ export async function startFightWithHero(
     if (ctx.callbackQuery) {
       await ctx.answerCallbackQuery({ text: "У соперника нет героев" });
     }
-    await editOrReply(ctx, "У соперника нет героев для боя.");
+    await replyOrEditHtml(ctx, "У соперника нет героев для боя.");
     battle.clearBattle(cid);
     return;
   }
@@ -200,131 +247,56 @@ export async function startFightWithHero(
     await ctx.answerCallbackQuery();
   }
 
-  await editOrReply(
+  await finalizePickMessage(
     ctx,
-    formatBattlePickHero(challengerName, defenderName, challengerHeroId),
-    keyboardPickHero(result.battleId, owned.map((h) => h.hero_id)),
+    formatChallengeSent(challengerName, defenderName, challengerHeroId) +
+      "\n\n<i>Ожидаем ответ защитника…</i>",
   );
-}
 
-async function refreshBattleMessage(
-  ctx: Context,
-  repo: Repository,
-  battleId: number,
-  battleRow: NonNullable<ReturnType<Repository["getBattle"]>>,
-  state: import("../game/battle/engine.js").BattleState,
-  finished: boolean,
-  result?: {
-    winnerId?: string;
-    winnerMmrDelta?: number;
-    loserMmrDelta?: number;
-    winnerXpGain?: number;
-    loserXpGain?: number;
-  },
-): Promise<void> {
-  const cid = chatId(ctx);
-  const chName = playerName(repo, cid, battleRow.challenger_id);
-  const defName = playerName(repo, cid, battleRow.defender_id);
+  const challengeMsg = await ctx.reply(
+    formatBattlePickHero(
+      challengerName,
+      targetUserId,
+      defenderName,
+      challengerHeroId,
+    ),
+    {
+      parse_mode: "HTML",
+      reply_markup: keyboardPickHero(result.battleId, owned.map((h) => h.hero_id)),
+      link_preview_options: { is_disabled: true },
+      ...(ctx.callbackQuery?.message && "message_id" in ctx.callbackQuery.message
+        ? {
+            reply_parameters: {
+              message_id: ctx.callbackQuery.message.message_id,
+            },
+          }
+        : {}),
+    },
+  );
 
-  let text: string;
-  if (finished && result?.winnerId) {
-    const loserId =
-      result.winnerId === battleRow.challenger_id
-        ? battleRow.defender_id
-        : battleRow.challenger_id;
-    const winnerHeroId =
-      result.winnerId === battleRow.challenger_id
-        ? state.challenger.heroId
-        : state.defender.heroId;
-    const loserHeroId =
-      loserId === battleRow.challenger_id
-        ? state.challenger.heroId
-        : state.defender.heroId;
+  repo.updateBattle(result.battleId, {
+    message_id: challengeMsg.message_id,
+    message_chat_id: String(challengeMsg.chat.id),
+  });
 
-    const winnerFighter =
-      result.winnerId === battleRow.challenger_id
-        ? state.challenger
-        : state.defender;
-    const loserFighter =
-      result.winnerId === battleRow.challenger_id
-        ? state.defender
-        : state.challenger;
-    const winnerHero = repo.getPlayerHero(cid, result.winnerId, winnerHeroId);
-    const loserHero = repo.getPlayerHero(cid, loserId, loserHeroId);
-    const winnerScore = repo.getUserScore(cid, result.winnerId);
-    const loserScore = repo.getUserScore(cid, loserId);
-
-    text = formatBattleResult(
-      playerName(repo, cid, result.winnerId),
-      playerName(repo, cid, loserId),
-      {
-        heroId: winnerHeroId,
-        level: winnerHero?.level ?? winnerFighter.level,
-        xp: winnerHero?.xp ?? 0,
-        xpGain: result.winnerXpGain ?? 0,
-        points: winnerScore?.points ?? 0,
-        pointsDelta: result.winnerMmrDelta ?? 0,
-      },
-      {
-        heroId: loserHeroId,
-        level: loserHero?.level ?? loserFighter.level,
-        xp: loserHero?.xp ?? 0,
-        xpGain: result.loserXpGain ?? 0,
-        points: loserScore?.points ?? 0,
-        pointsDelta: result.loserMmrDelta ?? 0,
-      },
-    );
-  } else {
-    text = formatBattleMessage(
-      state,
-      battleRow.challenger_id,
-      battleRow.defender_id,
-      chName,
-      defName,
-    );
-  }
-
-  const markup = finished
-    ? undefined
-    : keyboardBattleActions(
-        battleId,
-        state.challenger.heroId,
-        state.defender.heroId,
-        state.challenger.battleItems,
-        state.defender.battleItems,
-        state.challenger.pendingItemId,
-        state.defender.pendingItemId,
-      );
-
-  const msgChat = battleRow.message_chat_id ?? cid;
-  const msgId = battleRow.message_id;
-
-  if (msgId) {
+  if (ctx.callbackQuery?.message && "message_id" in ctx.callbackQuery.message) {
     try {
-      await ctx.api.editMessageText(Number(msgChat), msgId, text, {
-        parse_mode: "HTML",
-        reply_markup: markup,
-      });
-      return;
+      await ctx.api.editMessageReplyMarkup(
+        ctx.callbackQuery.message.chat.id,
+        ctx.callbackQuery.message.message_id,
+        { reply_markup: keyboardChallengePending(result.battleId) },
+      );
     } catch {
-      /* new message */
+      /* ignore */
     }
   }
-
-  const newMsg = await ctx.reply(text, {
-    parse_mode: "HTML",
-    reply_markup: markup,
-  });
-  repo.updateBattle(battleId, {
-    message_id: newMsg.message_id,
-    message_chat_id: String(newMsg.chat.id),
-  });
 }
 
 export async function handleBattlePick(
   ctx: Context,
   battle: BattleService,
   repo: Repository,
+  runner: BattleAutoRunner,
   battleId: number,
   heroId: number,
 ): Promise<void> {
@@ -346,174 +318,68 @@ export async function handleBattlePick(
     return;
   }
 
-  await ctx.answerCallbackQuery();
+  await ctx.answerCallbackQuery({ text: "Бой начался!" });
 
-  const state = result.state;
   const chName = playerName(repo, cid, battleRow.challenger_id);
   const defName = playerName(repo, cid, battleRow.defender_id);
 
-  const msg = await ctx.editMessageText(
+  await finalizePickMessage(
+    ctx,
+    `✅ ${formatUserMentionHtml(uid, defName)} принял вызов · бой ниже 👇`,
+  );
+
+  const state = result.state;
+  const text =
+    formatBattleFightHeader(
+      battleRow.challenger_id,
+      chName,
+      battleRow.defender_id,
+      defName,
+    ) +
     formatBattleMessage(
       state,
       battleRow.challenger_id,
       battleRow.defender_id,
       chName,
       defName,
-    ),
-    {
-      parse_mode: "HTML",
-      reply_markup: keyboardBattleActions(
-        battleId,
-        state.challenger.heroId,
-        state.defender.heroId,
-        state.challenger.battleItems,
-        state.defender.battleItems,
-        state.challenger.pendingItemId,
-        state.defender.pendingItemId,
-      ),
-    },
-  );
+    );
 
-  const message = msg === true ? ctx.callbackQuery?.message : msg;
-  if (message && "message_id" in message) {
-    repo.updateBattle(battleId, {
-      message_id: message.message_id,
-      message_chat_id: String(message.chat.id),
-    });
-  }
-}
-
-export async function handleBattleItemUse(
-  ctx: Context,
-  battle: BattleService,
-  repo: Repository,
-  battleId: number,
-  itemId: number,
-  side: "ch" | "def",
-): Promise<void> {
-  const cid = chatId(ctx);
-  const uid = userId(ctx);
-
-  const battleRow = repo.getBattle(battleId);
-  if (!battleRow) {
-    await ctx.answerCallbackQuery({ text: "Бой не найден" });
-    return;
-  }
-
-  const ownerId =
-    side === "ch" ? battleRow.challenger_id : battleRow.defender_id;
-  if (uid !== ownerId) {
-    await ctx.answerCallbackQuery({
-      text: "Это не ваши кнопки!",
-      show_alert: true,
-    });
-    return;
-  }
-
-  const result = battle.submitItemUse(cid, uid, itemId);
-  if (!result.ok) {
-    const msgs: Record<string, string> = {
-      turn_locked: "Ход уже зафиксирован скиллом",
-      invalid_item: "Предмет недоступен",
-      no_battle: "Бой не найден",
-      not_participant: "Вы не в бою",
-    };
-    await ctx.answerCallbackQuery({
-      text: msgs[result.reason] ?? result.reason,
-    });
-    return;
-  }
-
-  const item = getItemById(itemId);
-  await ctx.answerCallbackQuery({
-    text: `Выбран: ${item?.name_ru ?? "предмет"} · выберите скилл`,
+  const fightMsg = await ctx.reply(text, {
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+    ...(ctx.callbackQuery?.message && "message_id" in ctx.callbackQuery.message
+      ? {
+          reply_parameters: {
+            message_id: ctx.callbackQuery.message.message_id,
+          },
+        }
+      : {}),
   });
 
-  await refreshBattleMessage(
-    ctx,
-    repo,
-    battleId,
-    battleRow,
-    result.state,
-    false,
-  );
-}
-
-export async function handleBattleAction(
-  ctx: Context,
-  battle: BattleService,
-  repo: Repository,
-  battleId: number,
-  action: string,
-  side: "ch" | "def",
-): Promise<void> {
-  const cid = chatId(ctx);
-  const uid = userId(ctx);
-
-  const battleRow = repo.getBattle(battleId);
-  if (!battleRow) {
-    await ctx.answerCallbackQuery({ text: "Бой не найден" });
-    return;
-  }
-
-  const ownerId =
-    side === "ch" ? battleRow.challenger_id : battleRow.defender_id;
-  if (uid !== ownerId) {
-    await ctx.answerCallbackQuery({
-      text: "Это не ваши кнопки!",
-      show_alert: true,
-    });
-    return;
-  }
-
-  const battleAction = action as "attack" | "Q" | "W" | "E" | "R";
-  const result = battle.submitAction(cid, uid, battleAction);
-  if (!result.ok) {
-    const msgs: Record<string, string> = {
-      already_picked: "Вы уже выбрали скилл",
-      no_battle: "Бой не найден",
-      not_participant: "Вы не в бою",
-    };
-    await ctx.answerCallbackQuery({
-      text: msgs[result.reason] ?? result.reason,
-    });
-    return;
-  }
-
-  const state = result.state;
-  const fighter =
-    uid === battleRow.challenger_id ? state.challenger : state.defender;
-  const actionLabel = formatActionLabel(fighter.heroId, battleAction);
-
-  const bothPicked =
-    state.challenger.pendingAction != null &&
-    state.defender.pendingAction != null;
-
-  if (result.finished) {
-    await ctx.answerCallbackQuery({ text: "Бой!" });
-  } else if (bothPicked) {
-    await ctx.answerCallbackQuery({ text: "Оба готовы!" });
-  } else {
-    let toast = `Ваш выбор: ${actionLabel}`;
-    if (fighter.pendingItemId != null) {
-      const item = getItemById(fighter.pendingItemId);
-      toast = `${item?.name_ru ?? "Предмет"} → ${actionLabel}`;
-    }
-    await ctx.answerCallbackQuery({
-      text: `${toast} · ждём соперника`,
-    });
-  }
-
-  await refreshBattleMessage(ctx, repo, battleId, battleRow, state, result.finished, {
-    winnerId: result.winnerId,
-    winnerMmrDelta: result.winnerMmrDelta,
-    loserMmrDelta: result.loserMmrDelta,
-    winnerXpGain: result.winnerXpGain,
-    loserXpGain: result.loserXpGain,
+  repo.updateBattle(battleId, {
+    message_id: fightMsg.message_id,
+    message_chat_id: String(fightMsg.chat.id),
   });
+
+  runner.start(battleId);
 }
 
-function formatBattleEndedMessage(testMode: boolean): string {
+function formatBattleEndedMessage(
+  testMode: boolean,
+  reason?: "cancelled" | "declined" | "timeout",
+): string {
+  if (reason === "declined") {
+    return (
+      "🏳 <b>Вызов отклонён</b>\n\n" +
+      "<i>Рейтинг, золото и XP не изменились.</i>"
+    );
+  }
+  if (reason === "timeout") {
+    return (
+      "⏱ <b>Вызов истёк</b>\n\n" +
+      "<i>Защитник не ответил вовремя. Рейтинг, золото и XP не изменились.</i>"
+    );
+  }
   if (testMode) {
     return (
       "🧪 <b>Бой отменён</b> (тест)\n\n" +
@@ -533,6 +399,7 @@ type EndBattleResult =
 function tryEndBattle(
   repo: Repository,
   battle: BattleService,
+  runner: BattleAutoRunner,
   cid: string,
   uid: string,
   battleId?: number,
@@ -556,6 +423,7 @@ function tryEndBattle(
     return { ok: false, reason: "already_finished" };
   }
 
+  runner.stop(battleRow.id);
   battle.clearBattle(cid);
   return { ok: true, battleRow };
 }
@@ -595,10 +463,11 @@ export async function executeEndFight(
   ctx: Context,
   battle: BattleService,
   repo: Repository,
+  runner: BattleAutoRunner,
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
-  const result = tryEndBattle(repo, battle, cid, uid);
+  const result = tryEndBattle(repo, battle, runner, cid, uid);
 
   if (!result.ok) {
     const msg =
@@ -622,31 +491,93 @@ export async function handleBattleCancel(
   ctx: Context,
   battle: BattleService,
   repo: Repository,
+  runner: BattleAutoRunner,
   battleId: number,
 ): Promise<void> {
   const cid = chatId(ctx);
   const uid = userId(ctx);
-  const result = tryEndBattle(repo, battle, cid, uid, battleId);
+  const battleRow = repo.getBattle(battleId);
 
-  if (!result.ok) {
-    const alertText =
-      result.reason === "no_battle"
-        ? "Бой не найден"
-        : result.reason === "not_participant"
-          ? "Отменить могут только участники боя"
-          : "Бой уже завершён";
+  if (!battleRow || battleRow.chat_id !== cid) {
+    await ctx.answerCallbackQuery({ text: "Бой не найден" });
+    return;
+  }
+
+  if (uid !== battleRow.challenger_id && uid !== battleRow.defender_id) {
     await ctx.answerCallbackQuery({
-      text: alertText,
-      show_alert: result.reason === "not_participant",
+      text: "Отменить могут только участники боя",
+      show_alert: true,
     });
     return;
   }
 
-  await ctx.answerCallbackQuery({ text: "Бой отменён" });
+  if (
+    battleRow.state === "pick_defender" &&
+    uid !== battleRow.challenger_id
+  ) {
+    await ctx.answerCallbackQuery({
+      text: "Отменить вызов может только инициатор",
+      show_alert: true,
+    });
+    return;
+  }
+
+  const result = tryEndBattle(repo, battle, runner, cid, uid, battleId);
+
+  if (!result.ok) {
+    await ctx.answerCallbackQuery({ text: "Бой уже завершён" });
+    return;
+  }
+
+  await ctx.answerCallbackQuery({ text: "Вызов отменён" });
   await announceBattleEnded(
     ctx,
     result.battleRow,
-    formatBattleEndedMessage(true),
+    formatBattleEndedMessage(false, "cancelled"),
+  );
+}
+
+export async function handleBattleDecline(
+  ctx: Context,
+  battle: BattleService,
+  repo: Repository,
+  runner: BattleAutoRunner,
+  battleId: number,
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+  const battleRow = repo.getBattle(battleId);
+
+  if (!battleRow || battleRow.chat_id !== cid) {
+    await ctx.answerCallbackQuery({ text: "Вызов не найден" });
+    return;
+  }
+
+  if (battleRow.state !== "pick_defender") {
+    await ctx.answerCallbackQuery({ text: "Вызов уже неактивен" });
+    return;
+  }
+
+  if (uid !== battleRow.defender_id) {
+    await ctx.answerCallbackQuery({
+      text: "Отклонить может только защитник",
+      show_alert: true,
+    });
+    return;
+  }
+
+  const result = tryEndBattle(repo, battle, runner, cid, uid, battleId);
+
+  if (!result.ok) {
+    await ctx.answerCallbackQuery({ text: "Вызов уже завершён" });
+    return;
+  }
+
+  await ctx.answerCallbackQuery({ text: "Вызов отклонён" });
+  await announceBattleEnded(
+    ctx,
+    result.battleRow,
+    formatBattleEndedMessage(false, "declined"),
   );
 }
 
@@ -655,6 +586,7 @@ export async function executeFightCommand(
   battle: BattleService,
   shop: ShopService,
   repo: Repository,
+  wallet?: WalletService,
 ): Promise<void> {
   const mention = ctx.message?.entities?.find((e) => e.type === "text_mention");
   let targetId = mention?.user?.id
@@ -666,7 +598,7 @@ export async function executeFightCommand(
   }
 
   if (!targetId) {
-    await executeFightMenu(ctx, battle, shop, repo);
+    await executeFightMenu(ctx, battle, shop, repo, wallet);
     return;
   }
 
@@ -686,11 +618,43 @@ export async function executeFightCommand(
   const targetName = playerName(repo, cid, targetId);
   const challengerName = playerName(repo, cid, uid);
 
-  await ctx.reply(formatFightPickHero(targetName, challengerName), {
-    parse_mode: "HTML",
+  await replyHtml(ctx, formatFightPickHero(challengerName, targetName), {
     reply_markup: keyboardPickHeroForFight(
       heroes.map((h) => h.hero_id),
       targetId,
     ),
+  });
+}
+
+export async function expirePendingBattle(
+  api: Context["api"],
+  repo: Repository,
+  battle: BattleService,
+  runner: BattleAutoRunner,
+  battleId: number,
+): Promise<void> {
+  const battleRow = repo.getBattle(battleId);
+  if (!battleRow || battleRow.state !== "pick_defender") return;
+
+  runner.stop(battleId);
+  battle.clearBattle(battleRow.chat_id);
+
+  const text = formatBattleEndedMessage(false, "timeout");
+  if (battleRow.message_id && battleRow.message_chat_id) {
+    try {
+      await api.editMessageText(
+        Number(battleRow.message_chat_id),
+        battleRow.message_id,
+        text,
+        { parse_mode: "HTML" },
+      );
+      return;
+    } catch {
+      /* fallback */
+    }
+  }
+
+  await api.sendMessage(Number(battleRow.chat_id), text, {
+    parse_mode: "HTML",
   });
 }
