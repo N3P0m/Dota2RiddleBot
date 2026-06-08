@@ -84,21 +84,13 @@ const floodTaunts = new FloodTauntService(
   config.floodTauntsMaxPerHour,
 );
 
-const heroEmojiMap = config.heroEmojiMapDev
-  ? new HeroEmojiMapStore(config.heroEmojiMapPath)
-  : null;
-if (heroEmojiMap) {
-  bindHeroEmojiMapStore(heroEmojiMap);
-  console.log(`[HeroEmojiMap] dev mapper → ${config.heroEmojiMapPath}`);
-}
+const heroEmojiMap = new HeroEmojiMapStore(config.heroEmojiMapPath);
+bindHeroEmojiMapStore(heroEmojiMap);
+console.log(`[HeroEmojiMap] loaded → ${config.heroEmojiMapPath}`);
 
-const itemEmojiMap = config.heroEmojiMapDev
-  ? new ItemEmojiMapStore(config.itemEmojiMapPath)
-  : null;
-if (itemEmojiMap) {
-  bindItemEmojiMapStore(itemEmojiMap);
-  console.log(`[ItemEmojiMap] dev mapper → ${config.itemEmojiMapPath}`);
-}
+const itemEmojiMap = new ItemEmojiMapStore(config.itemEmojiMapPath);
+bindItemEmojiMapStore(itemEmojiMap);
+console.log(`[ItemEmojiMap] loaded → ${config.itemEmojiMapPath}`);
 
 const bot = new Bot(config.telegramBotToken);
 bot.use(logIncomingUpdates(config.logIncomingMessages));
