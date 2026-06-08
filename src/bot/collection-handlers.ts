@@ -1,0 +1,127 @@
+import type { Context } from "grammy";
+import type { Repository } from "../db/repository.js";
+import type { ShopService } from "../game/collection/shop.js";
+import type { BattleService } from "../game/battle/service.js";
+import { getMvpHeroEntry } from "../game/catalog/catalog.js";
+import {
+  formatCollectionList,
+  formatHeroDetail,
+  MENU_TEXT,
+} from "./collection-format.js";
+import {
+  CB,
+  keyboardCollectionList,
+  keyboardHeroDetail,
+  keyboardMenu,
+} from "./keyboards.js";
+import { chatId, userId } from "./actions.js";
+import { replyOrEditHtml } from "./telegram-html.js";
+
+export async function executeMenu(ctx: Context): Promise<void> {
+  await replyOrEditHtml(ctx, MENU_TEXT, keyboardMenu());
+}
+
+export async function executeCollection(
+  ctx: Context,
+  shop: ShopService,
+  repo: Repository,
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+  shop.ensureStarterHero(cid, uid);
+
+  const rows = repo.getPlayerHeroes(cid, uid);
+  await replyOrEditHtml(
+    ctx,
+    formatCollectionList(repo, cid, uid),
+    keyboardCollectionList(rows.map((r) => r.hero_id)),
+  );
+}
+
+async function showHeroDetail(
+  ctx: Context,
+  shop: ShopService,
+  repo: Repository,
+  heroId: number,
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+  const row = repo.getPlayerHero(cid, uid, heroId);
+  if (!row) return;
+
+  const refund = shop.getSellRefund(heroId);
+  const ownedCount = repo.getPlayerHeroes(cid, uid).length;
+  const entry = getMvpHeroEntry(heroId);
+  const canSell =
+    ownedCount > 1 &&
+    entry != null &&
+    entry.price > 0 &&
+    heroId !== 14;
+
+  await replyOrEditHtml(
+    ctx,
+    formatHeroDetail(repo, shop, cid, uid, heroId),
+    keyboardHeroDetail(heroId, refund, canSell),
+  );
+}
+
+export async function handleCollectionHero(
+  ctx: Context,
+  shop: ShopService,
+  repo: Repository,
+  heroId: number,
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+
+  const row = repo.getPlayerHero(cid, uid, heroId);
+  if (!row) {
+    await ctx.answerCallbackQuery({ text: "Герой не в коллекции" });
+    return;
+  }
+
+  await ctx.answerCallbackQuery();
+  await showHeroDetail(ctx, shop, repo, heroId);
+}
+
+export async function handleHeroSell(
+  ctx: Context,
+  shop: ShopService,
+  repo: Repository,
+  battle: BattleService,
+  heroId: number,
+): Promise<void> {
+  const cid = chatId(ctx);
+  const uid = userId(ctx);
+
+  const result = shop.sellHero(cid, uid, heroId, battle.hasActiveBattle(cid));
+  if (!result.ok) {
+    const msgs: Record<string, string> = {
+      not_owned: "Герой не ваш",
+      starter: "Стартового героя не продают",
+      last_hero: "Нужен хотя бы один герой",
+      in_battle: "Сначала завершите бой (/endfight)",
+      not_in_catalog: "Не в каталоге",
+    };
+    await ctx.answerCallbackQuery({
+      text: msgs[result.reason] ?? "Не удалось продать",
+      show_alert: true,
+    });
+    return;
+  }
+
+  await ctx.answerCallbackQuery({
+    text: `Продано: +${result.refund}g`,
+  });
+
+  await executeCollection(ctx, shop, repo);
+}
+
+export async function handleCollectionBack(
+  ctx: Context,
+  shop: ShopService,
+  repo: Repository,
+): Promise<void> {
+  await ctx.answerCallbackQuery();
+  await executeCollection(ctx, shop, repo);
+}

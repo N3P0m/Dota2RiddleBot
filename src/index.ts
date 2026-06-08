@@ -6,8 +6,20 @@ import { GameService } from "./game/round.js";
 import { DailyNickService } from "./game/daily-nick.js";
 import { InsultService } from "./game/insults.js";
 import { FloodTauntService } from "./game/flood-taunts.js";
+import { WalletService } from "./game/economy/wallet.js";
+import { ShopService } from "./game/collection/shop.js";
+import { BattleService } from "./game/battle/service.js";
 import { registerBotCommands } from "./bot/commands.js";
 import { registerHandlers } from "./bot/handlers.js";
+import { logIncomingUpdates } from "./bot/incoming-log.js";
+import {
+  HeroEmojiMapStore,
+  bindHeroEmojiMapStore,
+} from "./game/catalog/hero-emoji-map.js";
+import {
+  ItemEmojiMapStore,
+  bindItemEmojiMapStore,
+} from "./game/catalog/item-emoji-map.js";
 import {
   awardWeeklyTitles,
   shouldRunWeeklyAward,
@@ -15,6 +27,10 @@ import {
 import { getPreviousWeekKey } from "./game/periods.js";
 
 const repo = new Repository(config.databasePath);
+const wallet = new WalletService(repo);
+const shop = new ShopService(repo, wallet);
+const battle = new BattleService(repo, config.battleKFactor);
+
 const gemini = new GeminiClient(
   config.geminiApiKey,
   config.geminiModel,
@@ -24,9 +40,14 @@ const game = new GameService(
   repo,
   gemini,
   config,
+  config,
+  wallet,
   config.riddleSource,
   config.showAnswer,
   config.nickTimeZone,
+  config.riddleItemChance,
+  config.goldHintBuyCost,
+  config.goldHintWinnerTax,
 );
 
 const dailyNick = new DailyNickService(
@@ -55,8 +76,37 @@ const floodTaunts = new FloodTauntService(
   config.floodTauntsMaxPerHour,
 );
 
+const heroEmojiMap = config.heroEmojiMapDev
+  ? new HeroEmojiMapStore(config.heroEmojiMapPath)
+  : null;
+if (heroEmojiMap) {
+  bindHeroEmojiMapStore(heroEmojiMap);
+  console.log(`[HeroEmojiMap] dev mapper → ${config.heroEmojiMapPath}`);
+}
+
+const itemEmojiMap = config.heroEmojiMapDev
+  ? new ItemEmojiMapStore(config.itemEmojiMapPath)
+  : null;
+if (itemEmojiMap) {
+  bindItemEmojiMapStore(itemEmojiMap);
+  console.log(`[ItemEmojiMap] dev mapper → ${config.itemEmojiMapPath}`);
+}
+
 const bot = new Bot(config.telegramBotToken);
-registerHandlers(bot, game, repo, dailyNick, insults, floodTaunts);
+bot.use(logIncomingUpdates(config.logIncomingMessages));
+registerHandlers(
+  bot,
+  game,
+  repo,
+  dailyNick,
+  insults,
+  floodTaunts,
+  wallet,
+  shop,
+  battle,
+  heroEmojiMap,
+  itemEmojiMap,
+);
 
 await registerBotCommands(bot);
 
@@ -65,7 +115,7 @@ bot.catch((err) => {
 });
 
 console.log(
-  `Starting bot (riddles: ${config.riddleSource}, showAnswer: ${config.showAnswer}, logGemini: ${config.logGeminiRequests})…`,
+  `Starting bot (riddles: ${config.riddleSource}, showAnswer: ${config.showAnswer}, logGemini: ${config.logGeminiRequests}, logIncoming: ${config.logIncomingMessages})…`,
 );
 
 let lastWeeklyAwardWeek = getPreviousWeekKey(new Date(), config.nickTimeZone);

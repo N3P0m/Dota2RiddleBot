@@ -1,0 +1,12 @@
+[
+  { "hero_id": 14, "rarity": "starter", "required_guesses": 0, "price": 0, "custom_emoji_id": "5467767060303994626", "emoji_fallback": "🦸" },
+  { "hero_id": 5, "rarity": "common", "required_guesses": 1, "price": 20, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 2, "rarity": "common", "required_guesses": 1, "price": 20, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 26, "rarity": "common", "required_guesses": 2, "price": 25, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 8, "rarity": "common", "required_guesses": 2, "price": 25, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 1, "rarity": "rare", "required_guesses": 3, "price": 35, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 7, "rarity": "rare", "required_guesses": 3, "price": 35, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 25, "rarity": "rare", "required_guesses": 4, "price": 40, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 11, "rarity": "epic", "required_guesses": 5, "price": 55, "custom_emoji_id": "", "emoji_fallback": "🦸" },
+  { "hero_id": 35, "rarity": "epic", "required_guesses": 5, "price": 55, "custom_emoji_id": "", "emoji_fallback": "🦸" }
+]

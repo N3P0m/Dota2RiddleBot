@@ -18,7 +18,9 @@ export type AchievementId =
   | "riddle_starter"
   | "all_roles"
   | "divine_rank"
-  | "immortal_rank";
+  | "immortal_rank"
+  | "battle_first"
+  | "collector_5";
 
 export type Achievement = {
   id: AchievementId;
@@ -40,6 +42,8 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: "all_roles", name: "Универсал", description: "Победы на 5+ разных атрибутах" },
   { id: "divine_rank", name: "Божество", description: "Достичь ранга Божество" },
   { id: "immortal_rank", name: "Титан", description: "Достичь ранга Титан" },
+  { id: "battle_first", name: "Дуэлянт", description: "Первая победа в PvP-бою" },
+  { id: "collector_5", name: "Коллекционер", description: "5 героев в коллекции чата" },
 ];
 
 const ACHIEVEMENT_MAP = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));

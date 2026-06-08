@@ -9,6 +9,7 @@ import {
   serializeEmoSkills,
 } from "./emo-skills.js";
 import { getPresetRiddle } from "./preset-riddles.js";
+import { getPresetItemRiddle } from "./preset-item-riddles.js";
 import { isEmojiRound, type RoundMode } from "./round-mode.js";
 import {
   collectAnswerVariants,
@@ -17,6 +18,13 @@ import {
   type Hero,
 } from "../heroes/match.js";
 import { heroes } from "../heroes/match.js";
+import {
+  collectItemAnswerVariants,
+  getItemById,
+  getRandomItem,
+  isAnswerForItem,
+  type Item,
+} from "../items/match.js";
 import { pickHeroForSession } from "../heroes/pick.js";
 import type { RiddleSource } from "../config.js";
 import { calculateRoundPoints, type RoundPointsResult } from "./scoring.js";
@@ -27,12 +35,21 @@ import {
   checkWinAchievements,
   persistAchievements,
 } from "./achievements.js";
+import type { WalletService } from "./economy/wallet.js";
+import {
+  calculateGoldWinReward,
+  type GoldWinResult,
+  type GoldConfig,
+} from "./economy/gold-rewards.js";
+import { recordChatUnlockOnWin, isEntityInMvpCatalog } from "./collection/unlocks.js";
 
 export type StartRoundResult =
   | {
       ok: true;
       riddle: string;
-      hero: Hero;
+      hero?: Hero;
+      item?: Item;
+      targetType: "hero" | "item";
       showAnswer?: string;
       mode: RoundMode;
     }
@@ -41,8 +58,13 @@ export type StartRoundResult =
 export type AnswerResult =
   | {
       ok: true;
-      hero: Hero;
+      hero?: Hero;
+      item?: Item;
+      targetType: "hero" | "item";
       points: number;
+      goldEarned: number;
+      goldBreakdown: GoldWinResult;
+      goldAfter: number;
       isWinner: boolean;
       breakdown: RoundPointsResult;
       streakAfter: number;
@@ -50,15 +72,20 @@ export type AnswerResult =
       newTitle?: Title;
       previousTitle: Title;
       unlockedAchievements: AchievementId[];
+      unlockProgress?: { guessCount: number; required: number; newlyUnlocked: boolean };
     }
   | { ok: false; reason: "no_round" | "already_won" | "wrong" };
 
 export type HintResult =
   | { ok: true; hint: string; hintNumber: number }
-  | { ok: false; reason: "no_round" | "already_won" };
+  | {
+      ok: false;
+      reason: "no_round" | "already_won" | "insufficient_gold";
+      requiredGold?: number;
+    };
 
 export type SurrenderResult =
-  | { ok: true; hero: Hero }
+  | { ok: true; hero?: Hero; item?: Item; targetType: "hero" | "item" }
   | { ok: false; reason: "no_round" | "already_won" };
 
 export class GameService {
@@ -66,9 +93,14 @@ export class GameService {
     private repo: Repository,
     private gemini: GeminiClient,
     private scoringConfig: ScoringConfig,
+    private goldConfig: GoldConfig,
+    private wallet: WalletService,
     private riddleSource: RiddleSource,
     private showAnswer: boolean,
     private timeZone: string,
+    private riddleItemChance: number,
+    private goldHintBuyCost: number,
+    private goldHintWinnerTax: number,
   ) {}
 
   async startRound(
@@ -84,6 +116,13 @@ export class GameService {
     }
     if (existing) {
       this.repo.deleteRound(chatId);
+    }
+
+    const isItemRound =
+      mode === "text" && Math.random() < this.riddleItemChance;
+
+    if (isItemRound) {
+      return this.startItemRound(chatId, userId, username, displayName);
     }
 
     let history = this.repo.getRiddleHeroHistory(chatId);
@@ -123,6 +162,7 @@ export class GameService {
       answerVariants,
       mode,
       emoSkillsJson,
+      "hero",
     );
     this.repo.incrementRiddlesStarted(chatId, userId, username, displayName);
 
@@ -131,8 +171,42 @@ export class GameService {
       ok: true,
       riddle,
       hero,
+      targetType: "hero",
       showAnswer: this.showAnswer ? answerLabel : undefined,
       mode,
+    };
+  }
+
+  private async startItemRound(
+    chatId: string,
+    userId: string,
+    username: string | null,
+    displayName: string,
+  ): Promise<StartRoundResult> {
+    const item = getRandomItem();
+    const riddle = getPresetItemRiddle(item);
+    const answerVariants = collectItemAnswerVariants(item);
+    this.repo.createRound(
+      chatId,
+      item.id,
+      userId,
+      riddle,
+      answerVariants,
+      "text",
+      null,
+      "item",
+    );
+    this.repo.incrementRiddlesStarted(chatId, userId, username, displayName);
+    console.log(`[Game] item riddle → ${item.name_en} (${item.name_ru})`);
+
+    const answerLabel = `${item.name_ru} / ${item.name_en}`;
+    return {
+      ok: true,
+      riddle,
+      item,
+      targetType: "item",
+      showAnswer: this.showAnswer ? answerLabel : undefined,
+      mode: "text",
     };
   }
 
@@ -152,32 +226,107 @@ export class GameService {
       return { ok: false, reason: "already_won" };
     }
 
+    const targetType = (round.target_type ?? "hero") as "hero" | "item";
+    const extra = this.repo.getAnswerVariants(chatId);
+
+    if (targetType === "item") {
+      return this.checkItemAnswer(
+        chatId,
+        userId,
+        username,
+        displayName,
+        text,
+        round,
+        extra,
+      );
+    }
+
     const hero = getHeroById(round.hero_id);
     if (!hero) {
       this.repo.deleteRound(chatId);
       return { ok: false, reason: "no_round" };
     }
 
-    const extra = this.repo.getAnswerVariants(chatId);
     if (!isAnswerForHero(text, hero, extra)) {
       return { ok: false, reason: "wrong" };
     }
 
+    return this.processWin(chatId, userId, username, displayName, round, hero, "hero");
+  }
+
+  private checkItemAnswer(
+    chatId: string,
+    userId: string,
+    username: string | null,
+    displayName: string,
+    text: string,
+    round: { hero_id: number; hints_used: number; started_at: number },
+    extra: string[],
+  ): AnswerResult {
+    const item = getItemById(round.hero_id);
+    if (!item) {
+      this.repo.deleteRound(chatId);
+      return { ok: false, reason: "no_round" };
+    }
+
+    if (!isAnswerForItem(text, item, extra)) {
+      return { ok: false, reason: "wrong" };
+    }
+
+    return this.processWin(chatId, userId, username, displayName, round, item, "item");
+  }
+
+  private processWin(
+    chatId: string,
+    userId: string,
+    username: string | null,
+    displayName: string,
+    round: { hero_id: number; hints_used: number; started_at: number },
+    entity: Hero | Item,
+    targetType: "hero" | "item",
+  ): AnswerResult {
     const elapsedMs = Date.now() - round.started_at;
     const streakBefore = this.repo.getCurrentStreak(chatId, userId);
     const pointsBefore =
       this.repo.getUserScore(chatId, userId)?.points ?? 0;
     const titleBefore = getTitleByPoints(pointsBefore);
 
+    const difficultyMultiplier =
+      targetType === "hero"
+        ? getHeroDifficultyMultiplier(entity as Hero)
+        : 1;
+
     const breakdown = calculateRoundPoints(
       {
         hintsUsed: round.hints_used,
         elapsedMs,
-        difficultyMultiplier: getHeroDifficultyMultiplier(hero),
+        difficultyMultiplier,
         streakBefore,
       },
       this.scoringConfig,
     );
+
+    const goldBreakdown = calculateGoldWinReward(
+      {
+        hintsUsed: round.hints_used,
+        elapsedMs,
+        difficultyMultiplier,
+      },
+      this.goldConfig,
+    );
+
+    this.wallet.credit(
+      userId,
+      goldBreakdown.total,
+      "win",
+      chatId,
+      String(round.hero_id),
+    );
+
+    if (round.hints_used > 0) {
+      const tax = round.hints_used * this.goldHintWinnerTax;
+      this.wallet.debitUpTo(userId, tax, "hint_winner_tax", chatId);
+    }
 
     this.repo.addWin(
       chatId,
@@ -190,30 +339,51 @@ export class GameService {
 
     const streakAfter = this.repo.updateStreaks(chatId, userId);
     const now = new Date();
-    this.repo.recordRoundResult({
-      chatId,
-      userId,
-      heroId: hero.id,
-      pointsEarned: breakdown.total,
-      hintsUsed: round.hints_used,
-      elapsedMs,
-      difficultyMultiplier: breakdown.difficultyMultiplier,
-      streakAfter,
-      periodWeek: weekKey(now, this.timeZone),
-      periodMonth: monthKey(now, this.timeZone),
-    });
+
+    if (targetType === "hero") {
+      this.repo.recordRoundResult({
+        chatId,
+        userId,
+        heroId: round.hero_id,
+        pointsEarned: breakdown.total,
+        hintsUsed: round.hints_used,
+        elapsedMs,
+        difficultyMultiplier: breakdown.difficultyMultiplier,
+        streakAfter,
+        periodWeek: weekKey(now, this.timeZone),
+        periodMonth: monthKey(now, this.timeZone),
+      });
+    }
 
     const pointsAfter = pointsBefore + breakdown.total;
-    const unlockedAchievements = checkWinAchievements(this.repo, {
-      chatId,
-      userId,
-      hero,
-      hintsUsed: round.hints_used,
-      elapsedMs,
-      streakAfter,
-      pointsAfter,
-      breakdown,
-    });
+    const goldAfter = this.wallet.getWallet(userId).gold;
+
+    let unlockProgress:
+      | { guessCount: number; required: number; newlyUnlocked: boolean }
+      | undefined;
+
+    if (isEntityInMvpCatalog(targetType, round.hero_id)) {
+      unlockProgress = recordChatUnlockOnWin(
+        this.repo,
+        chatId,
+        targetType,
+        round.hero_id,
+      );
+    }
+
+    const unlockedAchievements =
+      targetType === "hero"
+        ? checkWinAchievements(this.repo, {
+            chatId,
+            userId,
+            hero: entity as Hero,
+            hintsUsed: round.hints_used,
+            elapsedMs,
+            streakAfter,
+            pointsAfter,
+            breakdown,
+          })
+        : [];
     persistAchievements(this.repo, chatId, userId, unlockedAchievements);
 
     const titleAfter = getTitleByPoints(pointsAfter);
@@ -222,8 +392,13 @@ export class GameService {
 
     return {
       ok: true,
-      hero,
+      hero: targetType === "hero" ? (entity as Hero) : undefined,
+      item: targetType === "item" ? (entity as Item) : undefined,
+      targetType,
       points: breakdown.total,
+      goldEarned: goldBreakdown.total,
+      goldBreakdown,
+      goldAfter,
       isWinner: true,
       breakdown,
       streakAfter,
@@ -231,10 +406,14 @@ export class GameService {
       newTitle,
       previousTitle: titleBefore,
       unlockedAchievements,
+      unlockProgress,
     };
   }
 
-  async requestHint(chatId: string): Promise<HintResult> {
+  async requestHint(
+    chatId: string,
+    userId: string,
+  ): Promise<HintResult> {
     const round = this.repo.getActiveRound(chatId);
     if (!round) {
       const any = this.repo.getRound(chatId);
@@ -244,25 +423,56 @@ export class GameService {
       return { ok: false, reason: "no_round" };
     }
 
-    const hero = getHeroById(round.hero_id);
-    if (!hero || !round.riddle) {
-      return { ok: false, reason: "no_round" };
+    const debit = this.wallet.debit(
+      userId,
+      this.goldHintBuyCost,
+      "hint_buy",
+      chatId,
+    );
+    if (!debit.ok) {
+      return {
+        ok: false,
+        reason: "insufficient_gold",
+        requiredGold: this.goldHintBuyCost,
+      };
     }
 
+    const targetType = (round.target_type ?? "hero") as "hero" | "item";
     const hintNumber = round.hints_used + 1;
 
     if (isEmojiRound(round.round_mode)) {
       const skills = parseEmoSkills(round.emo_skills);
       if (skills.length === 0) {
+        this.wallet.credit(userId, this.goldHintBuyCost, "hint_refund", chatId);
         return { ok: false, reason: "no_round" };
       }
+      let hint: string;
       if (hintNumber > skills.length) {
-        const hint = formatEmoHintFromSkills(skills, skills.length);
+        hint = formatEmoHintFromSkills(skills, skills.length);
         return { ok: true, hint, hintNumber: skills.length };
       }
-      const hint = formatEmoHintFromSkills(skills, hintNumber);
+      hint = formatEmoHintFromSkills(skills, hintNumber);
       this.repo.incrementHints(chatId);
+      this.repo.appendHintPayer(chatId, userId, hintNumber);
       return { ok: true, hint, hintNumber };
+    }
+
+    if (targetType === "item") {
+      const item = getItemById(round.hero_id);
+      if (!item) {
+        this.wallet.credit(userId, this.goldHintBuyCost, "hint_refund", chatId);
+        return { ok: false, reason: "no_round" };
+      }
+      const hint = this.fallbackItemHint(item, hintNumber);
+      this.repo.incrementHints(chatId);
+      this.repo.appendHintPayer(chatId, userId, hintNumber);
+      return { ok: true, hint, hintNumber };
+    }
+
+    const hero = getHeroById(round.hero_id);
+    if (!hero || !round.riddle) {
+      this.wallet.credit(userId, this.goldHintBuyCost, "hint_refund", chatId);
+      return { ok: false, reason: "no_round" };
     }
 
     const previouslyHinted = this.repo.getHintedSkills(chatId);
@@ -274,7 +484,17 @@ export class GameService {
     );
     this.repo.incrementHints(chatId);
     this.repo.appendHintedSkill(chatId, pack.skillKey);
+    this.repo.appendHintPayer(chatId, userId, hintNumber);
     return { ok: true, hint: pack.hint, hintNumber };
+  }
+
+  private fallbackItemHint(item: Item, hintNumber: number): string {
+    const hints = [
+      `Предмет из лавки, tier ${item.tier}.`,
+      `Стоит около ${item.price} золота в магазине.`,
+      `Русское название начинается на «${item.name_ru.slice(0, 2)}…»`,
+    ];
+    return hints[Math.min(hintNumber - 1, hints.length - 1)]!;
   }
 
   surrenderRound(chatId: string): SurrenderResult {
@@ -287,6 +507,18 @@ export class GameService {
       return { ok: false, reason: "no_round" };
     }
 
+    const targetType = (round.target_type ?? "hero") as "hero" | "item";
+
+    if (targetType === "item") {
+      const item = getItemById(round.hero_id);
+      if (!item) {
+        this.repo.deleteRound(chatId);
+        return { ok: false, reason: "no_round" };
+      }
+      this.repo.deleteRound(chatId);
+      return { ok: true, item, targetType: "item" };
+    }
+
     const hero = getHeroById(round.hero_id);
     if (!hero) {
       this.repo.deleteRound(chatId);
@@ -294,7 +526,7 @@ export class GameService {
     }
 
     this.repo.deleteRound(chatId);
-    return { ok: true, hero };
+    return { ok: true, hero, targetType: "hero" };
   }
 
   hasActiveRound(chatId: string): boolean {
@@ -312,5 +544,9 @@ export class GameService {
   getRoundMode(chatId: string): RoundMode {
     const round = this.repo.getRound(chatId);
     return isEmojiRound(round?.round_mode) ? "emoji" : "text";
+  }
+
+  getHintBuyCost(): number {
+    return this.goldHintBuyCost;
   }
 }

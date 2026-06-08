@@ -1179,7 +1179,7 @@
   {
     "id": 68,
     "name_en": "Ancient Apparition",
-    "name_ru": "Аа",
+    "name_ru": "Аппарат",
     "roles": [
       "Support",
       "Disabler",
@@ -1189,6 +1189,8 @@
     "aliases": [
       "ancient apparition",
       "аа",
+      "аппарат",
+      "апарат",
       "ancientapparition",
       "aa",
       "калдун"

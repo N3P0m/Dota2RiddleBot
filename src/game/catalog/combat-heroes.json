@@ -1,0 +1,166 @@
+[
+  {
+    "hero_id": 14,
+    "base_hp": 280,
+    "base_mana": 120,
+    "base_armor": 2,
+    "base_damage": 22,
+    "hp_per_level": 25,
+    "mana_per_level": 8,
+    "damage_per_level": 2,
+    "skills": [
+      { "key": "Q", "name_ru": "Мясной крюк", "name_en": "Meat Hook", "mana_cost": 25, "cooldown_turns": 2, "effect": { "type": "damage", "value": 45, "duration_turns": 1 } },
+      { "key": "W", "name_ru": "Гниение", "name_en": "Rot", "mana_cost": 15, "cooldown_turns": 0, "effect": { "type": "dot", "value": 12, "duration_turns": 2 } },
+      { "key": "E", "name_ru": "Мясная стена", "name_en": "Flesh Heap", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "buff_armor", "value": 3, "duration_turns": 2 } },
+      { "key": "R", "name_ru": "Разорвать", "name_en": "Dismember", "mana_cost": 50, "cooldown_turns": 4, "effect": { "type": "stun", "value": 35, "duration_turns": 2 } }
+    ]
+  },
+  {
+    "hero_id": 5,
+    "base_hp": 200,
+    "base_mana": 200,
+    "base_armor": 0,
+    "base_damage": 16,
+    "hp_per_level": 18,
+    "mana_per_level": 15,
+    "damage_per_level": 1,
+    "skills": [
+      { "key": "Q", "name_ru": "Кристальная нова", "name_en": "Crystal Nova", "mana_cost": 30, "cooldown_turns": 2, "effect": { "type": "damage", "value": 40 } },
+      { "key": "W", "name_ru": "Ледяные оковы", "name_en": "Frostbite", "mana_cost": 25, "cooldown_turns": 2, "effect": { "type": "stun", "value": 20, "duration_turns": 1 } },
+      { "key": "E", "name_ru": "Таинственная аура", "name_en": "Arcane Aura", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "heal", "value": 25 } },
+      { "key": "R", "name_ru": "Ледяное поле", "name_en": "Freezing Field", "mana_cost": 60, "cooldown_turns": 4, "effect": { "type": "damage", "value": 55 } }
+    ]
+  },
+  {
+    "hero_id": 2,
+    "base_hp": 300,
+    "base_mana": 100,
+    "base_armor": 3,
+    "base_damage": 24,
+    "hp_per_level": 28,
+    "mana_per_level": 6,
+    "damage_per_level": 2,
+    "passive": { "type": "counter", "value": 20, "chance": 0.35 },
+    "skills": [
+      { "key": "Q", "name_ru": "Боевой клич", "name_en": "Berserker's Call", "mana_cost": 20, "cooldown_turns": 3, "effect": { "type": "stun", "value": 15, "duration_turns": 1 } },
+      { "key": "W", "name_ru": "Боевой голод", "name_en": "Battle Hunger", "mana_cost": 15, "cooldown_turns": 1, "effect": { "type": "dot", "value": 18, "duration_turns": 3 } },
+      { "key": "E", "name_ru": "Контр-спираль", "name_en": "Counter Helix", "mana_cost": 0, "cooldown_turns": 1, "effect": { "type": "damage", "value": 30 } },
+      { "key": "R", "name_ru": "Обезглавливание", "name_en": "Culling Blade", "mana_cost": 40, "cooldown_turns": 4, "effect": { "type": "damage", "value": 80 } }
+    ]
+  },
+  {
+    "hero_id": 26,
+    "base_hp": 210,
+    "base_mana": 220,
+    "base_armor": 1,
+    "base_damage": 18,
+    "hp_per_level": 20,
+    "mana_per_level": 16,
+    "damage_per_level": 1,
+    "skills": [
+      { "key": "Q", "name_ru": "Шип", "name_en": "Impale", "mana_cost": 25, "cooldown_turns": 2, "effect": { "type": "stun", "value": 30, "duration_turns": 1 } },
+      { "key": "W", "name_ru": "Гекс", "name_en": "Hex", "mana_cost": 30, "cooldown_turns": 3, "effect": { "type": "silence", "value": 0, "duration_turns": 2 } },
+      { "key": "E", "name_ru": "Высасывание маны", "name_en": "Mana Drain", "mana_cost": 20, "cooldown_turns": 1, "effect": { "type": "damage", "value": 25 } },
+      { "key": "R", "name_ru": "Пальцем смерти", "name_en": "Finger of Death", "mana_cost": 55, "cooldown_turns": 4, "effect": { "type": "damage", "value": 70 } }
+    ]
+  },
+  {
+    "hero_id": 8,
+    "base_hp": 240,
+    "base_mana": 130,
+    "base_armor": 2,
+    "base_damage": 26,
+    "hp_per_level": 22,
+    "mana_per_level": 10,
+    "damage_per_level": 3,
+    "passive": { "type": "crit", "value": 1.5, "chance": 0.25 },
+    "skills": [
+      { "key": "Q", "name_ru": "Буря клинков", "name_en": "Blade Fury", "mana_cost": 25, "cooldown_turns": 2, "effect": { "type": "damage", "value": 35 } },
+      { "key": "W", "name_ru": "Целительный тотем", "name_en": "Healing Ward", "mana_cost": 30, "cooldown_turns": 3, "effect": { "type": "heal", "value": 40 } },
+      { "key": "E", "name_ru": "Танец клинка", "name_en": "Blade Dance", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "buff_damage", "value": 15, "duration_turns": 2 } },
+      { "key": "R", "name_ru": "Омнислэш", "name_en": "Omnislash", "mana_cost": 50, "cooldown_turns": 4, "effect": { "type": "damage", "value": 60 } }
+    ]
+  },
+  {
+    "hero_id": 1,
+    "base_hp": 220,
+    "base_mana": 150,
+    "base_armor": 1,
+    "base_damage": 28,
+    "hp_per_level": 20,
+    "mana_per_level": 12,
+    "damage_per_level": 3,
+    "skills": [
+      { "key": "Q", "name_ru": "Сожжение маны", "name_en": "Mana Break", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "damage", "value": 30 } },
+      { "key": "W", "name_ru": "Морф", "name_en": "Blink", "mana_cost": 20, "cooldown_turns": 2, "effect": { "type": "buff_damage", "value": 10, "duration_turns": 1 } },
+      { "key": "E", "name_ru": "Защита от магии", "name_en": "Spell Shield", "mana_cost": 15, "cooldown_turns": 3, "effect": { "type": "buff_armor", "value": 5, "duration_turns": 2 } },
+      { "key": "R", "name_ru": "Пустота маны", "name_en": "Mana Void", "mana_cost": 45, "cooldown_turns": 4, "effect": { "type": "damage", "value": 65 } }
+    ]
+  },
+  {
+    "hero_id": 7,
+    "base_hp": 260,
+    "base_mana": 180,
+    "base_armor": 2,
+    "base_damage": 24,
+    "hp_per_level": 24,
+    "mana_per_level": 14,
+    "damage_per_level": 2,
+    "passive": { "type": "aftershock", "value": 18, "chance": 1 },
+    "skills": [
+      { "key": "Q", "name_ru": "Раскол", "name_en": "Fissure", "mana_cost": 30, "cooldown_turns": 2, "effect": { "type": "stun", "value": 35, "duration_turns": 1 } },
+      { "key": "W", "name_ru": "Зачарованный тотем", "name_en": "Enchant Totem", "mana_cost": 20, "cooldown_turns": 2, "effect": { "type": "buff_damage", "value": 25, "duration_turns": 1 } },
+      { "key": "E", "name_ru": "Афтершок", "name_en": "Aftershock", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "damage", "value": 20 } },
+      { "key": "R", "name_ru": "Эхо-слэм", "name_en": "Echo Slam", "mana_cost": 55, "cooldown_turns": 4, "effect": { "type": "damage", "value": 75 } }
+    ]
+  },
+  {
+    "hero_id": 25,
+    "base_hp": 200,
+    "base_mana": 230,
+    "base_armor": 0,
+    "base_damage": 20,
+    "hp_per_level": 18,
+    "mana_per_level": 18,
+    "damage_per_level": 2,
+    "skills": [
+      { "key": "Q", "name_ru": "Драконий раб", "name_en": "Dragon Slave", "mana_cost": 25, "cooldown_turns": 1, "effect": { "type": "damage", "value": 42 } },
+      { "key": "W", "name_ru": "Световой удар", "name_en": "Light Strike Array", "mana_cost": 30, "cooldown_turns": 2, "effect": { "type": "stun", "value": 25, "duration_turns": 1 } },
+      { "key": "E", "name_ru": "Огненная душа", "name_en": "Fiery Soul", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "buff_damage", "value": 12, "duration_turns": 2 } },
+      { "key": "R", "name_ru": "Лагуна", "name_en": "Laguna Blade", "mana_cost": 55, "cooldown_turns": 4, "effect": { "type": "damage", "value": 72 } }
+    ]
+  },
+  {
+    "hero_id": 11,
+    "base_hp": 210,
+    "base_mana": 200,
+    "base_armor": 1,
+    "base_damage": 22,
+    "hp_per_level": 19,
+    "mana_per_level": 14,
+    "damage_per_level": 2,
+    "skills": [
+      { "key": "Q", "name_ru": "Теневой разряд", "name_en": "Shadowraze", "mana_cost": 20, "cooldown_turns": 1, "effect": { "type": "damage", "value": 38 } },
+      { "key": "W", "name_ru": "Присутствие тьмы", "name_en": "Presence of the Dark Lord", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "buff_damage", "value": 10, "duration_turns": 3 } },
+      { "key": "E", "name_ru": "Сбор душ", "name_en": "Feast of Souls", "mana_cost": 15, "cooldown_turns": 2, "effect": { "type": "damage", "value": 28 } },
+      { "key": "R", "name_ru": "Реквием", "name_en": "Requiem of Souls", "mana_cost": 50, "cooldown_turns": 4, "effect": { "type": "damage", "value": 68 } }
+    ]
+  },
+  {
+    "hero_id": 35,
+    "base_hp": 190,
+    "base_mana": 160,
+    "base_armor": 0,
+    "base_damage": 30,
+    "hp_per_level": 16,
+    "mana_per_level": 12,
+    "damage_per_level": 4,
+    "passive": { "type": "headshot", "value": 15, "chance": 0.4 },
+    "skills": [
+      { "key": "Q", "name_ru": "Шрапнель", "name_en": "Shrapnel", "mana_cost": 25, "cooldown_turns": 2, "effect": { "type": "dot", "value": 15, "duration_turns": 2 } },
+      { "key": "W", "name_ru": "Хедшот", "name_en": "Headshot", "mana_cost": 0, "cooldown_turns": 0, "effect": { "type": "damage", "value": 35 } },
+      { "key": "E", "name_ru": "Прицельный выстрел", "name_en": "Take Aim", "mana_cost": 15, "cooldown_turns": 2, "effect": { "type": "buff_damage", "value": 20, "duration_turns": 2 } },
+      { "key": "R", "name_ru": "Убийственный выстрел", "name_en": "Assassinate", "mana_cost": 45, "cooldown_turns": 4, "effect": { "type": "damage", "value": 90 } }
+    ]
+  }
+]

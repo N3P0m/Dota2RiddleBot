@@ -7,8 +7,15 @@ import {
   getAchievement,
 } from "../game/achievements.js";
 import type { Hero } from "../heroes/match.js";
+import type { Item } from "../items/match.js";
 import type { RoundPointsResult } from "../game/scoring.js";
 import { formatPoints, formatPointsBreakdown } from "../game/scoring.js";
+import {
+  formatGoldWinBreakdown,
+  type GoldWinResult,
+} from "../game/economy/gold-rewards.js";
+import { formatHeroNameWithEmojiHtml } from "../game/catalog/hero-emoji.js";
+import { formatItemNameWithEmojiHtml } from "../game/catalog/item-emoji.js";
 import { getHeroDifficulty } from "../game/hero-difficulty.js";
 import {
   formatRankName,
@@ -39,33 +46,46 @@ export type LeaderboardPeriod = "all" | "week" | "month";
 export const HELP_TEXT = `🎮 <b>Угадай героя Dota 2</b>
 
 <b>Команды:</b>
-/riddle — новая загадка
-/emo-riddle — эмо-загадка (1 эмодзи = 1 скилл)
-/hint — подсказка
-/nick — дотаник на сегодня (нейросеть)
-/nick new — перекатить (или кнопка под ником)
-/top — топ-10 за всё время
-/top week — топ недели
-/top month — топ месяца
-/achievements — все достижения
-/me — профиль: титул, очки, серия
-/cancel — сдаться (показать героя)
+/menu — меню всех команд
+/riddle — новая загадка (герой или предмет)
+/emo_riddle — эмо-загадка (1 эмодзи = 1 скилл)
+/hint — платная подсказка (золото)
+/shop — магазин героев и предметов
+/heroes — герои: статы, слоты предметов, продажа
+/collection — то же, что /heroes
+/gold — баланс золота и рейтинг чата
+/fight — вызов на бой (кнопки соперников)
+/endfight — завершить активный PvP-бой
+/nick — дотаник на сегодня
+/top — рейтинг чата (загадки + бои)
+/me — профиль · /achievements — достижения
+/cancel — сдаться
 /help — справка
 
-<b>Очки:</b> зависят от скорости, подсказок, серии и сложности героя.
-<b>Ранги:</b> как в Dota 2 по MMR-очкам (0 → 15 000): Рекрут 1 … Титан 5.
-<b>Достижения:</b> разблокируются за особые заслуги.
+<b>Золото:</b> старт 100, награды за победы, тратится на подсказки и магазин.
+<b>Коллекция:</b> чат разблокирует героев/предметы угадываниями, покупка за золото.
+<b>Бои:</b> кнопка «Вызвать на бой» или /fight — выбор соперника и героя.
 
-<b>Как играть:</b>
-1. /riddle или кнопка «Новая загадка»
-2. /emo-riddle — герой зашифрован эмодзи-скиллами
-3. Ответ: <b>!имя</b> (<code>!пудж</code>, <code>!largo</code>)
-4. Под загадкой: <b>Подсказка</b> и <b>Сдаться</b>
-5. После угадывания: <b>Топ</b> и новая загадка`;
+<b>Ответ:</b> <code>!имя</code> или <code>!бкб</code>`;
 
 export function formatRiddle(riddle: string, showAnswer?: string): string {
   const formatted = escapeHtml(formatReadableText(riddle));
-  let body = `🧩 <b>Загадка:</b>\n\n${formatted}\n\n<i>Ответ: <code>!имя</code> (RU/EN). /hint — подсказка</i>`;
+  let body = `🧩 <b>Загадка (герой):</b>\n\n${formatted}\n\n<i>Ответ: <code>!имя</code> (RU/EN). /hint — подсказка за золото</i>`;
+  if (showAnswer) {
+    body += `\n\n🔧 <b>Ответ (тест):</b> ${escapeHtml(showAnswer)}`;
+  }
+  return body;
+}
+
+export function formatItemRiddle(
+  riddle: string,
+  item: Item,
+  showAnswer?: string,
+): string {
+  const formatted = escapeHtml(formatReadableText(riddle));
+  let body =
+    `🎒 <b>Загадка (предмет):</b>\n\n${formatted}\n\n` +
+    `<i>Ответ: <code>!${escapeHtml(item.name_ru.toLowerCase())}</code> или EN. /hint — за золото</i>`;
   if (showAnswer) {
     body += `\n\n🔧 <b>Ответ (тест):</b> ${escapeHtml(showAnswer)}`;
   }
@@ -114,13 +134,16 @@ export function formatWorkTaunt(text: string): string {
   return `💼 <b>Бот:</b> <i>${escapeHtml(text)}</i>`;
 }
 
-export function formatSurrender(
-  heroNameRu: string,
-  heroNameEn: string,
-): string {
+export function formatSurrender(hero: Hero): string {
   return (
-    `🏳 <b>Сдались!</b> Это был <b>${escapeHtml(heroNameRu)}</b> (${escapeHtml(heroNameEn)}).\n\n` +
+    `🏳 <b>Сдались!</b> Это был ${formatHeroNameWithEmojiHtml(hero.id, `<b>${escapeHtml(hero.name_ru)}</b>`)} (${escapeHtml(hero.name_en)}).\n\n` +
     `<i>Герой в пройденных — в новых загадках почти не повторится.</i>`
+  );
+}
+
+export function formatSurrenderItem(item: Item): string {
+  return (
+    `🏳 <b>Сдались!</b> Это был предмет ${formatItemNameWithEmojiHtml(item.id, `<b>${escapeHtml(item.name_ru)}</b>`)} (${escapeHtml(item.name_en)}).`
   );
 }
 
@@ -154,27 +177,66 @@ function formatHeroWinBlock(hero: Hero, breakdown: RoundPointsResult): string {
   meta.push(formatHintsLine(breakdown.hintsUsed));
 
   return (
-    `🦸 <b>${escapeHtml(hero.name_ru)}</b> <i>(${escapeHtml(hero.name_en)})</i>\n` +
+    `${formatHeroNameWithEmojiHtml(hero.id, `<b>${escapeHtml(hero.name_ru)}</b>`)} <i>(${escapeHtml(hero.name_en)})</i>\n` +
+    `<i>${meta.join(" · ")}</i>`
+  );
+}
+
+function formatItemWinBlock(item: Item, breakdown: RoundPointsResult): string {
+  const meta: string[] = [
+    `⏱ ${formatElapsedTime(breakdown.elapsedMs)}`,
+    formatHintsLine(breakdown.hintsUsed),
+  ];
+  return (
+    `${formatItemNameWithEmojiHtml(item.id, `<b>${escapeHtml(item.name_ru)}</b>`)} <i>(${escapeHtml(item.name_en)})</i>\n` +
     `<i>${meta.join(" · ")}</i>`
   );
 }
 
 export function formatWin(
   displayName: string,
-  hero: Hero,
+  hero: Hero | undefined,
+  item: Item | undefined,
+  targetType: "hero" | "item",
   breakdown: RoundPointsResult,
+  goldBreakdown: GoldWinResult,
   streakAfter: number,
   newTitle?: Title,
   previousTitle?: Title,
   pointsAfter?: number,
+  unlockProgress?: {
+    guessCount: number;
+    required: number;
+    newlyUnlocked: boolean;
+  },
 ): string {
+  const entityBlock =
+    targetType === "item" && item
+      ? formatItemWinBlock(item, breakdown)
+      : hero
+        ? formatHeroWinBlock(hero, breakdown)
+        : "";
+
   const lines = [
     `✅ <b>Верно!</b> ${escapeHtml(displayName)}`,
     "",
-    formatHeroWinBlock(hero, breakdown),
+    entityBlock,
     "",
-    `💰 ${formatPointsBreakdown(breakdown)}`,
+    `🏆 ${formatPointsBreakdown(breakdown)}`,
+    `🪙 ${formatGoldWinBreakdown(goldBreakdown)}`,
   ];
+
+  if (unlockProgress) {
+    const { guessCount, required, newlyUnlocked } = unlockProgress;
+    if (newlyUnlocked) {
+      lines.push("", `🔓 <b>Разблокировано в магазине чата!</b> (/shop)`);
+    } else if (required < 999) {
+      lines.push(
+        "",
+        `📊 Прогресс чата: ${guessCount}/${required} угадываний до разблокировки`,
+      );
+    }
+  }
 
   if (streakAfter >= 3) {
     lines.push("", `🔥 Серия: <b>${streakAfter}</b> подряд!`);

@@ -14,9 +14,11 @@ import {
   formatEmoHint,
   formatEmoRiddle,
   formatHint,
+  formatItemRiddle,
   formatLeaderboard,
   formatRiddle,
   formatSurrender,
+  formatSurrenderItem,
   formatWin,
   formatTaunt,
   formatWorkTaunt,
@@ -24,6 +26,7 @@ import {
   type LeaderboardPeriod,
 } from "./format.js";
 import { keyboardAfterWin, keyboardDuringRound, keyboardLeaderboard } from "./keyboards.js";
+import { replyHtml } from "./telegram-html.js";
 import {
   EMO_LOADING_STATUSES,
   HINT_LOADING_STATUSES,
@@ -135,7 +138,9 @@ async function executeRoundStart(
     const text =
       result.mode === "emoji"
         ? formatEmoRiddle(result.riddle, result.showAnswer)
-        : formatRiddle(result.riddle, result.showAnswer);
+        : result.targetType === "item" && result.item
+          ? formatItemRiddle(result.riddle, result.item, result.showAnswer)
+          : formatRiddle(result.riddle, result.showAnswer);
 
     await replaceMessage(
       ctx.api,
@@ -182,6 +187,7 @@ export async function executeHint(
   insults: InsultService,
 ): Promise<void> {
   const cid = chatId(ctx);
+  const uid = userId(ctx);
 
   if (!game.hasActiveRound(cid)) {
     const msg = game.hasAnyRound(cid)
@@ -195,12 +201,14 @@ export async function executeHint(
 
   if (emojiMode) {
     try {
-      const result = await game.requestHint(cid);
+      const result = await game.requestHint(cid, uid);
       if (!result.ok) {
         const msg =
-          result.reason === "no_round"
-            ? "Нет активной загадки."
-            : "🏁 Герой уже угадан!";
+          result.reason === "insufficient_gold"
+            ? `💰 Нужно ${result.requiredGold ?? game.getHintBuyCost()} золота для подсказки. /gold`
+            : result.reason === "no_round"
+              ? "Нет активной загадки."
+              : "🏁 Герой уже угадан!";
         await ctx.reply(msg);
         return;
       }
@@ -231,14 +239,16 @@ export async function executeHint(
   );
 
   try {
-    const result = await game.requestHint(cid);
+    const result = await game.requestHint(cid, uid);
     ticker.stop();
 
     if (!result.ok) {
       const msg =
-        result.reason === "no_round"
-          ? "Нет активной загадки."
-          : "🏁 Герой уже угадан!";
+        result.reason === "insufficient_gold"
+          ? `💰 Нужно ${result.requiredGold ?? game.getHintBuyCost()} золота. /gold`
+          : result.reason === "no_round"
+            ? "Нет активной загадки."
+            : "🏁 Герой уже угадан!";
       await replaceMessage(ctx.api, msgChatId, msgId, msg);
       return;
     }
@@ -303,10 +313,15 @@ export async function executeCancel(
     return false;
   }
 
-  await ctx.reply(
-    formatSurrender(result.hero.name_ru, result.hero.name_en),
-    { parse_mode: "HTML", reply_markup: keyboardAfterWin() },
-  );
+  if (result.targetType === "item" && result.item) {
+    await replyHtml(ctx, formatSurrenderItem(result.item), {
+      reply_markup: keyboardAfterWin(),
+    });
+  } else if (result.hero) {
+    await replyHtml(ctx, formatSurrender(result.hero), {
+      reply_markup: keyboardAfterWin(),
+    });
+  }
   return true;
 }
 
@@ -376,18 +391,22 @@ export async function replyWin(
   >,
   replyToMessageId?: number,
 ): Promise<void> {
-  await ctx.reply(
+  await replyHtml(
+    ctx,
     formatWin(
       displayName(ctx),
       result.hero,
+      result.item,
+      result.targetType,
       result.breakdown,
+      result.goldBreakdown,
       result.streakAfter,
       result.newTitle,
       result.previousTitle,
       result.pointsAfter,
+      result.unlockProgress,
     ),
     {
-      parse_mode: "HTML",
       reply_markup: keyboardAfterWin(),
       ...(replyToMessageId
         ? { reply_parameters: { message_id: replyToMessageId } }

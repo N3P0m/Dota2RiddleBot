@@ -1,9 +1,13 @@
 import { Bot, Context } from "grammy";
+import { config } from "../config.js";
 import type { GameService } from "../game/round.js";
 import type { DailyNickService } from "../game/daily-nick.js";
 import type { InsultService } from "../game/insults.js";
 import type { FloodTauntService } from "../game/flood-taunts.js";
 import type { Repository } from "../db/repository.js";
+import type { WalletService } from "../game/economy/wallet.js";
+import type { ShopService } from "../game/collection/shop.js";
+import type { BattleService } from "../game/battle/service.js";
 import { formatTodayRu } from "../game/nick-date.js";
 import type { AchievementId } from "../game/achievements.js";
 import { getActiveWeeklyTitle } from "../game/weekly-title.js";
@@ -28,7 +32,51 @@ import {
   formatAchievementsList,
   type LeaderboardPeriod,
 } from "./format.js";
-import { CB, keyboardAfterNick, keyboardAfterWin } from "./keyboards.js";
+import {
+  CB,
+  keyboardAfterNick,
+  keyboardAfterWin,
+  keyboardMenu,
+  keyboardShop,
+} from "./keyboards.js";
+import {
+  formatGoldProfile,
+  formatShop,
+  MENU_TEXT,
+} from "./collection-format.js";
+import {
+  executeCollection,
+  executeMenu,
+  handleCollectionBack,
+  handleCollectionHero,
+  handleHeroSell,
+} from "./collection-handlers.js";
+import { replyOrEditHtml } from "./telegram-html.js";
+import type { HeroEmojiMapStore } from "../game/catalog/hero-emoji-map.js";
+import type { ItemEmojiMapStore } from "../game/catalog/item-emoji-map.js";
+import {
+  executeEmoMap,
+  executeEmoMapPage,
+  handleEmoMapPick,
+  tryCaptureEmoMapMessage,
+} from "./emo-map-handlers.js";
+import {
+  executeItemEmoMap,
+  executeItemEmoMapPage,
+  handleItemEmoMapPick,
+  tryCaptureItemEmoMapMessage,
+} from "./item-emo-map-handlers.js";
+import {
+  executeFightCommand,
+  handleBattleAction,
+  handleBattleItemUse,
+  executeEndFight,
+  executeFightMenu,
+  executeFightPickOpponent,
+  handleBattleCancel,
+  handleBattlePick,
+  startFightWithHero,
+} from "./battle-handlers.js";
 import {
   NICK_LOADING_STATUSES,
   pickRandomStatus,
@@ -44,10 +92,11 @@ function parseAnswerAttempt(text: string): string | null {
   return answer.length >= 2 ? answer : null;
 }
 
-function parseTopPeriod(text: string): LeaderboardPeriod {
+function parseTopPeriod(text: string): LeaderboardPeriod | "battle" {
   const arg = text.trim().split(/\s+/)[1]?.toLowerCase();
   if (arg === "week" || arg === "неделя") return "week";
   if (arg === "month" || arg === "месяц") return "month";
+  if (arg === "battle" || arg === "бой" || arg === "боёв") return "battle";
   return "all";
 }
 
@@ -160,6 +209,11 @@ export function registerHandlers(
   dailyNick: DailyNickService,
   insults: InsultService,
   floodTaunts: FloodTauntService,
+  wallet: WalletService,
+  shop: ShopService,
+  battle: BattleService,
+  heroEmojiMap: HeroEmojiMapStore | null,
+  itemEmojiMap: ItemEmojiMapStore | null,
 ): void {
   bot.command("help", async (ctx) => {
     await ctx.reply(HELP_TEXT, { parse_mode: "HTML" });
@@ -175,7 +229,7 @@ export function registerHandlers(
 
   bot.command("top", async (ctx) => {
     const period = parseTopPeriod(ctx.message?.text ?? "");
-    await executeTop(ctx, repo, period);
+    await executeTop(ctx, repo, period === "battle" ? "all" : period);
   });
 
   bot.command(["achievements", "ach"], async (ctx) => {
@@ -190,6 +244,78 @@ export function registerHandlers(
   });
 
   bot.command("cancel", async (ctx) => executeCancel(ctx, game));
+
+  bot.command("gold", async (ctx) => {
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    const w = wallet.ensureWallet(uid);
+    const points = repo.getUserScore(cid, uid)?.points ?? 0;
+    await ctx.reply(formatGoldProfile(w, points), { parse_mode: "HTML" });
+  });
+
+  bot.command("shop", async (ctx) => {
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    shop.ensureStarterHero(cid, uid);
+    const w = wallet.ensureWallet(uid);
+    const heroRows = shop.listShopHeroes(cid, uid).map((h) => ({
+      heroId: h.entry.hero_id,
+      price: h.entry.price,
+      owned: h.owned,
+      unlocked: h.unlocked,
+    }));
+    const itemRows = shop.listShopItems(cid, uid).map((i) => ({
+      itemId: i.item.id,
+      price: i.item.price,
+      unlocked: i.unlocked,
+      owned: i.owned,
+      canBuy: i.canBuy,
+    }));
+    await replyOrEditHtml(
+      ctx,
+      formatShop(shop, cid, uid, w.gold),
+      keyboardShop(heroRows, itemRows),
+    );
+  });
+
+  bot.command("menu", async (ctx) => {
+    await replyOrEditHtml(ctx, MENU_TEXT, keyboardMenu());
+  });
+
+  // Telegram не считает /emo-map bot_command (дефис в имени) — ловим через hears.
+  bot.hears(/^\/emo-map(?:@\w+)?\s*$/i, async (ctx) => {
+    if (!heroEmojiMap) {
+      await ctx.reply("Маппер эмодзи отключён (HERO_EMOJI_MAP_DEV).");
+      return;
+    }
+    itemEmojiMap?.clearPending(userId(ctx));
+    await executeEmoMap(ctx, heroEmojiMap);
+  });
+
+  bot.hears(/^\/item-emo-map(?:@\w+)?\s*$/i, async (ctx) => {
+    if (!itemEmojiMap) {
+      await ctx.reply("Маппер эмодзи отключён (HERO_EMOJI_MAP_DEV).");
+      return;
+    }
+    heroEmojiMap?.clearPending(userId(ctx));
+    await executeItemEmoMap(ctx, itemEmojiMap);
+  });
+
+  bot.command("collection", async (ctx) => {
+    await executeCollection(ctx, shop, repo);
+  });
+
+  bot.command("heroes", async (ctx) => {
+    await executeCollection(ctx, shop, repo);
+  });
+
+  bot.command("fight", async (ctx) => {
+    await executeFightCommand(ctx, battle, shop, repo);
+  });
+
+  bot.command("endfight", async (ctx) => {
+    await executeEndFight(ctx, battle, repo);
+  });
 
   bot.command("nick", async (ctx) => {
     const text = ctx.message?.text?.trim() ?? "";
@@ -255,6 +381,218 @@ export function registerHandlers(
     await ctx.answerCallbackQuery({ text: "Перекатываю…" });
     await runNickCommand(ctx, dailyNick, repo, true);
   });
+
+  bot.callbackQuery(CB.SHOP, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    shop.ensureStarterHero(cid, uid);
+    const w = wallet.ensureWallet(uid);
+    const heroRows = shop.listShopHeroes(cid, uid).map((h) => ({
+      heroId: h.entry.hero_id,
+      price: h.entry.price,
+      owned: h.owned,
+      unlocked: h.unlocked,
+    }));
+    const itemRows = shop.listShopItems(cid, uid).map((i) => ({
+      itemId: i.item.id,
+      price: i.item.price,
+      unlocked: i.unlocked,
+      owned: i.owned,
+      canBuy: i.canBuy,
+    }));
+    await replyOrEditHtml(
+      ctx,
+      formatShop(shop, cid, uid, w.gold),
+      keyboardShop(heroRows, itemRows),
+    );
+  });
+
+  bot.callbackQuery(CB.COLLECTION, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeCollection(ctx, shop, repo);
+  });
+
+  bot.callbackQuery(CB.MENU, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeMenu(ctx);
+  });
+
+  bot.callbackQuery(CB.COL_BACK, async (ctx) => {
+    await handleCollectionBack(ctx, shop, repo);
+  });
+
+  bot.callbackQuery(/^col_h:(\d+)$/, async (ctx) => {
+    await handleCollectionHero(ctx, shop, repo, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery(/^col_sell:(\d+)$/, async (ctx) => {
+    await handleHeroSell(ctx, shop, repo, battle, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery(/^emo_map:(\d+)$/, async (ctx) => {
+    if (!heroEmojiMap) {
+      await ctx.answerCallbackQuery({ text: "Отключено" });
+      return;
+    }
+    itemEmojiMap?.clearPending(userId(ctx));
+    await handleEmoMapPick(ctx, heroEmojiMap, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery(/^emo_map_p:(\d+)$/, async (ctx) => {
+    if (!heroEmojiMap) {
+      await ctx.answerCallbackQuery({ text: "Отключено" });
+      return;
+    }
+    await executeEmoMapPage(ctx, heroEmojiMap, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery("emo_map_nop", async (ctx) => {
+    await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(/^item_emo_map:(\d+)$/, async (ctx) => {
+    if (!itemEmojiMap) {
+      await ctx.answerCallbackQuery({ text: "Отключено" });
+      return;
+    }
+    heroEmojiMap?.clearPending(userId(ctx));
+    await handleItemEmoMapPick(ctx, itemEmojiMap, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery(/^item_emo_map_p:(\d+)$/, async (ctx) => {
+    if (!itemEmojiMap) {
+      await ctx.answerCallbackQuery({ text: "Отключено" });
+      return;
+    }
+    await executeItemEmoMapPage(ctx, itemEmojiMap, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery("item_emo_map_nop", async (ctx) => {
+    await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(CB.FIGHT, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeFightMenu(ctx, battle, shop, repo);
+  });
+
+  bot.callbackQuery(/^fight_vs:(.+)$/, async (ctx) => {
+    await executeFightPickOpponent(
+      ctx,
+      shop,
+      repo,
+      ctx.match![1]!,
+    );
+  });
+
+  bot.callbackQuery(CB.TOP_BATTLE, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await executeTop(ctx, repo, "all");
+  });
+
+  bot.callbackQuery(/^shop_h:(\d+)$/, async (ctx) => {
+    const heroId = Number(ctx.match![1]);
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    const result = shop.buyHero(cid, uid, heroId);
+    if (!result.ok) {
+      const msgs: Record<string, string> = {
+        not_unlocked: "Ещё не разблокирован в этом чате.",
+        already_owned: "Уже куплен.",
+        insufficient_gold: "Не хватает золота.",
+        not_in_catalog: "Нет в каталоге.",
+      };
+      await ctx.answerCallbackQuery({
+        text: msgs[result.reason] ?? "Ошибка",
+        show_alert: true,
+      });
+      return;
+    }
+    await ctx.answerCallbackQuery({ text: `Куплен: ${result.name}` });
+  });
+
+  bot.callbackQuery(/^shop_i:(\d+)$/, async (ctx) => {
+    const itemId = Number(ctx.match![1]);
+    const cid = chatId(ctx);
+    const uid = userId(ctx);
+    const result = shop.buyItem(cid, uid, itemId);
+    if (!result.ok) {
+      const msgs: Record<string, string> = {
+        not_unlocked: "Предмет не разблокирован чатом.",
+        already_owned: "Предмет уже куплен.",
+        slots_full: "Все 3 слота заняты.",
+        insufficient_gold: "Не хватает золота.",
+        not_in_catalog: "Нет в каталоге.",
+      };
+      await ctx.answerCallbackQuery({
+        text: msgs[result.reason] ?? "Ошибка",
+        show_alert: true,
+      });
+      return;
+    }
+    await ctx.answerCallbackQuery({ text: `Куплен: ${result.name}` });
+  });
+
+  bot.callbackQuery(/^fight_ch:([^:]+):(\d+)$/, async (ctx) => {
+    const targetUserId = ctx.match![1]!;
+    const heroId = Number(ctx.match![2]);
+    await startFightWithHero(ctx, battle, shop, repo, targetUserId, heroId);
+  });
+
+  bot.callbackQuery(/^btl_pick:(\d+):(\d+)$/, async (ctx) => {
+    const battleId = Number(ctx.match![1]);
+    const heroId = Number(ctx.match![2]);
+    await handleBattlePick(ctx, battle, repo, battleId, heroId);
+  });
+
+  bot.callbackQuery(/^btl_item:(\d+):(ch|def):(\d+)$/, async (ctx) => {
+    const battleId = Number(ctx.match![1]);
+    const side = ctx.match![2] as "ch" | "def";
+    const itemId = Number(ctx.match![3]);
+    await handleBattleItemUse(ctx, battle, repo, battleId, itemId, side);
+  });
+
+  bot.callbackQuery(/^btl:(\d+):(ch|def):(\w+)$/, async (ctx) => {
+    const battleId = Number(ctx.match![1]);
+    const side = ctx.match![2] as "ch" | "def";
+    const action = ctx.match![3]!;
+    await handleBattleAction(ctx, battle, repo, battleId, action, side);
+  });
+
+  bot.callbackQuery(/^btl_cancel:(\d+)$/, async (ctx) => {
+    if (!config.testBattleCancel) {
+      await ctx.answerCallbackQuery({ text: "Отключено" });
+      return;
+    }
+    await handleBattleCancel(ctx, battle, repo, Number(ctx.match![1]));
+  });
+
+  bot.callbackQuery("btl_nop", async (ctx) => {
+    await ctx.answerCallbackQuery();
+  });
+
+  if (heroEmojiMap || itemEmojiMap) {
+    bot
+      .on("message")
+      .filter((ctx) => {
+        const uid = userId(ctx);
+        return (
+          heroEmojiMap?.getPending(uid) != null ||
+          itemEmojiMap?.getPending(uid) != null
+        );
+      })
+      .use(async (ctx) => {
+        const uid = userId(ctx);
+        if (itemEmojiMap?.getPending(uid) != null) {
+          await tryCaptureItemEmoMapMessage(ctx, itemEmojiMap);
+          return;
+        }
+        if (heroEmojiMap?.getPending(uid) != null) {
+          await tryCaptureEmoMapMessage(ctx, heroEmojiMap);
+        }
+      });
+  }
 
   bot.on("message:text", async (ctx) => {
     const text = ctx.message.text.trim();

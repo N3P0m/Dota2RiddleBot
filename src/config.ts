@@ -40,6 +40,8 @@ export const config = {
   showAnswer: process.env.SHOW_ANSWER === "true",
   /** Логировать промпты и ответы Gemini в консоль */
   logGeminiRequests: process.env.LOG_GEMINI_REQUESTS !== "false",
+  /** Логировать входящие сообщения и нажатия кнопок пользователей */
+  logIncomingMessages: process.env.LOG_INCOMING_MESSAGES !== "false",
   nickTimeZone: process.env.NICK_TIMEZONE ?? "Europe/Moscow",
   /** Сколько ников за один запрос к Gemini (перекаты без API, пока не кончится очередь) */
   nickStackSize: Math.min(
@@ -62,6 +64,23 @@ export const config = {
     5,
     Math.max(1, Number(process.env.FLOOD_TAUNTS_MAX_PER_HOUR ?? "2")),
   ),
+  startingGold: Number(process.env.STARTING_GOLD ?? "100"),
+  goldPerWin: Number(process.env.GOLD_PER_WIN ?? "15"),
+  goldHintBuyCost: Number(process.env.GOLD_HINT_BUY_COST ?? "8"),
+  goldHintWinnerTax: Number(process.env.GOLD_HINT_WINNER_TAX ?? "4"),
+  riddleItemChance: Number(process.env.RIDDLE_ITEM_CHANCE ?? "0.15"),
+  battleKFactor: Number(process.env.BATTLE_K_FACTOR ?? "25"),
+  startingBattleMmr: Number(process.env.STARTING_BATTLE_MMR ?? "1000"),
+  /** Тест: кнопка «Отменить бой» без штрафов */
+  testBattleCancel: process.env.TEST_BATTLE_CANCEL === "true",
+  /** Доля цены при продаже героя (0.5 = 50%) */
+  heroSellRefundRate: Number(process.env.HERO_SELL_REFUND_RATE ?? "0.5"),
+  /** Dev: /emo-map — привязка custom emoji к героям (глобально для бота) */
+  heroEmojiMapDev: process.env.HERO_EMOJI_MAP_DEV === "true",
+  heroEmojiMapPath:
+    process.env.HERO_EMOJI_MAP_PATH ?? "./data/hero-emoji-map.json",
+  itemEmojiMapPath:
+    process.env.ITEM_EMOJI_MAP_PATH ?? "./data/item-emoji-map.json",
   titleEmoji: {
     herald: process.env.TITLE_EMOJI_HERALD ?? process.env.TITLE_EMOJI_CREEP,
     guardian: process.env.TITLE_EMOJI_GUARDIAN ?? process.env.TITLE_EMOJI_SUPPORT,

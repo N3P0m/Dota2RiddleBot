@@ -5,12 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && cp src/db/schema.sql dist/db/",
+    "build": "tsc && cp src/db/schema.sql dist/db/ && cp -r src/game/catalog dist/game/",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "generate-heroes": "tsx scripts/generate-heroes.ts",
     "assign-difficulty": "tsx scripts/assign-hero-difficulty.ts",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "tsx --test src/game/*.test.ts src/game/**/*.test.ts src/bot/*.test.ts"
   },
   "engines": {
     "node": ">=20"

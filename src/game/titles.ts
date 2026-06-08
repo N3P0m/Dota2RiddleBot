@@ -1,4 +1,5 @@
 import { config, type TitleId } from "../config.js";
+import { formatCustomEmojiHtml } from "./catalog/custom-emoji.js";
 
 /** Верхняя граница лестницы — как топовый MMR в Dota 2 (~15k). */
 export const MAX_RANK_POINTS = 15_000;
@@ -58,10 +59,7 @@ export function formatRankName(title: Title, points: number): string {
 
 export function formatTitleBadge(title: Title): string {
   const customId = config.titleEmoji[title.id];
-  if (customId) {
-    return `<tg-emoji emoji-id="${customId}">${title.emoji}</tg-emoji>`;
-  }
-  return title.emoji;
+  return formatCustomEmojiHtml(customId, title.emoji);
 }
 
 export function formatTitleLine(title: Title, points?: number): string {

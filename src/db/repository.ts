@@ -45,6 +45,52 @@ export type RoundRow = {
   hinted_skills: string;
   wrong_guesses: number;
   taunts_sent: number;
+  target_type: string;
+  hint_payers: string;
+};
+
+export type WalletRow = {
+  user_id: string;
+  gold: number;
+  battle_mmr: number;
+  created_at: number;
+};
+
+export type PlayerHeroRow = {
+  chat_id: string;
+  user_id: string;
+  hero_id: number;
+  level: number;
+  xp: number;
+  equipped_items: string;
+};
+
+export type ChatUnlockRow = {
+  chat_id: string;
+  entity_type: string;
+  entity_id: number;
+  guess_count: number;
+  unlocked_at: number | null;
+};
+
+export type BattleRow = {
+  id: number;
+  chat_id: string;
+  message_id: number | null;
+  message_chat_id: string | null;
+  challenger_id: string;
+  defender_id: string;
+  state: string;
+  turn: number;
+  state_json: string;
+  created_at: number;
+  winner_id: string | null;
+};
+
+export type BattleMmrRow = {
+  user_id: string;
+  display_name: string;
+  battle_mmr: number;
 };
 
 export type UserAchievementRow = {
@@ -59,7 +105,7 @@ export type WeeklyTitleRow = {
 };
 
 const ROUND_COLUMNS =
-  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills, hinted_skills, wrong_guesses, taunts_sent";
+  "id, chat_id, hero_id, started_by, started_at, winner_user_id, riddle, answer_variants, hints_used, round_mode, emo_skills, hinted_skills, wrong_guesses, taunts_sent, target_type, hint_payers";
 
 const SCORE_COLUMNS =
   "chat_id, user_id, username, display_name, points, wins, current_streak, best_streak, riddles_started";
@@ -114,6 +160,16 @@ export class Repository {
     if (!roundNames.has("taunts_sent")) {
       this.db.exec(
         `ALTER TABLE rounds ADD COLUMN taunts_sent INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+    if (!roundNames.has("target_type")) {
+      this.db.exec(
+        `ALTER TABLE rounds ADD COLUMN target_type TEXT NOT NULL DEFAULT 'hero'`,
+      );
+    }
+    if (!roundNames.has("hint_payers")) {
+      this.db.exec(
+        `ALTER TABLE rounds ADD COLUMN hint_payers TEXT NOT NULL DEFAULT '[]'`,
       );
     }
 
@@ -241,6 +297,68 @@ export class Repository {
         used_at INTEGER NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_chat_work_taunt_history ON chat_work_taunt_history(chat_id, used_at DESC);
+
+      CREATE TABLE IF NOT EXISTS player_wallets (
+        user_id TEXT PRIMARY KEY,
+        gold INTEGER NOT NULL DEFAULT 100,
+        battle_mmr INTEGER NOT NULL DEFAULT 1000,
+        created_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS gold_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        chat_id TEXT,
+        amount INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        ref_id TEXT,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_gold_ledger_user ON gold_ledger(user_id, created_at DESC);
+
+      CREATE TABLE IF NOT EXISTS chat_unlocks (
+        chat_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id INTEGER NOT NULL,
+        guess_count INTEGER NOT NULL DEFAULT 0,
+        unlocked_at INTEGER,
+        PRIMARY KEY (chat_id, entity_type, entity_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS player_heroes (
+        chat_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        hero_id INTEGER NOT NULL,
+        level INTEGER NOT NULL DEFAULT 1,
+        xp INTEGER NOT NULL DEFAULT 0,
+        equipped_items TEXT NOT NULL DEFAULT '[]',
+        PRIMARY KEY (chat_id, user_id, hero_id)
+      );
+
+      CREATE TABLE IF NOT EXISTS player_items (
+        chat_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        slot INTEGER NOT NULL CHECK(slot >= 0 AND slot < 3),
+        item_id INTEGER NOT NULL,
+        uses_remaining INTEGER NOT NULL,
+        PRIMARY KEY (chat_id, user_id, slot)
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_player_items_unique_item
+        ON player_items(chat_id, user_id, item_id);
+
+      CREATE TABLE IF NOT EXISTS battles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        chat_id TEXT NOT NULL UNIQUE,
+        message_id INTEGER,
+        message_chat_id TEXT,
+        challenger_id TEXT NOT NULL,
+        defender_id TEXT NOT NULL,
+        state TEXT NOT NULL,
+        turn INTEGER NOT NULL DEFAULT 1,
+        state_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        winner_id TEXT
+      );
     `);
 
     this.seedInsultsIfEmpty();
@@ -255,6 +373,8 @@ export class Repository {
         `ALTER TABLE nick_queues ADD COLUMN bonus_rerolls INTEGER NOT NULL DEFAULT 0`,
       );
     }
+
+    this.migratePlayerItemsTable();
 
     const dailyRows = this.db
       .prepare(
@@ -327,19 +447,20 @@ export class Repository {
 
   createRound(
     chatId: string,
-    heroId: number,
+    targetId: number,
     startedBy: string,
     riddle: string,
     answerVariants: string[],
     roundMode: "text" | "emoji" = "text",
     emoSkills: string | null = null,
+    targetType: "hero" | "item" = "hero",
   ): RoundRow {
     const startedAt = Date.now();
     const variantsJson = JSON.stringify(answerVariants);
     this.db
       .prepare(
-        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills, hinted_skills, wrong_guesses, taunts_sent)
-         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, '[]', 0, 0)
+        `INSERT INTO rounds (chat_id, hero_id, started_by, started_at, riddle, answer_variants, hints_used, winner_user_id, round_mode, emo_skills, hinted_skills, wrong_guesses, taunts_sent, target_type, hint_payers)
+         VALUES (?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, '[]', 0, 0, ?, '[]')
          ON CONFLICT(chat_id) DO UPDATE SET
            hero_id = excluded.hero_id,
            started_by = excluded.started_by,
@@ -352,19 +473,43 @@ export class Repository {
            emo_skills = excluded.emo_skills,
            hinted_skills = '[]',
            wrong_guesses = 0,
-           taunts_sent = 0`,
+           taunts_sent = 0,
+           target_type = excluded.target_type,
+           hint_payers = '[]'`,
       )
       .run(
         chatId,
-        heroId,
+        targetId,
         startedBy,
         startedAt,
         riddle,
         variantsJson,
         roundMode,
         emoSkills,
+        targetType,
       );
     return this.getActiveRound(chatId)!;
+  }
+
+  getHintPayers(chatId: string): { user_id: string; hint_number: number }[] {
+    const round = this.getRound(chatId);
+    if (!round?.hint_payers) return [];
+    try {
+      return JSON.parse(round.hint_payers) as {
+        user_id: string;
+        hint_number: number;
+      }[];
+    } catch {
+      return [];
+    }
+  }
+
+  appendHintPayer(chatId: string, userId: string, hintNumber: number): void {
+    const payers = this.getHintPayers(chatId);
+    payers.push({ user_id: userId, hint_number: hintNumber });
+    this.db
+      .prepare(`UPDATE rounds SET hint_payers = ? WHERE chat_id = ?`)
+      .run(JSON.stringify(payers), chatId);
   }
 
   incrementHints(chatId: string): void {
@@ -426,6 +571,39 @@ export class Repository {
            wins = scores.wins + 1`,
       )
       .run(chatId, userId, username, displayName, points);
+  }
+
+  /** Единый рейтинг чата (загадки + бои). delta может быть отрицательной. */
+  adjustPoints(
+    chatId: string,
+    userId: string,
+    username: string | null,
+    displayName: string,
+    delta: number,
+  ): number {
+    const existing = this.getUserScore(chatId, userId);
+    const newPoints = Math.max(0, (existing?.points ?? 0) + delta);
+
+    if (existing) {
+      this.db
+        .prepare(
+          `UPDATE scores SET
+             points = ?,
+             username = COALESCE(?, username),
+             display_name = ?
+           WHERE chat_id = ? AND user_id = ?`,
+        )
+        .run(newPoints, username, displayName, chatId, userId);
+    } else {
+      this.db
+        .prepare(
+          `INSERT INTO scores (chat_id, user_id, username, display_name, points, wins, current_streak, best_streak, riddles_started)
+           VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0)`,
+        )
+        .run(chatId, userId, username, displayName, newPoints);
+    }
+
+    return newPoints;
   }
 
   getCurrentStreak(chatId: string, userId: string): number {
@@ -574,6 +752,27 @@ export class Repository {
          FROM scores WHERE chat_id = ? AND user_id = ?`,
       )
       .get(chatId, userId) as ScoreRow | undefined;
+  }
+
+  /** Ник → имя из scores → имя из nick_profiles → @username → «Игрок». */
+  getPlayerDisplayName(chatId: string, userId: string): string {
+    const row = this.db
+      .prepare(
+        `SELECT COALESCE(
+           np.current_nickname,
+           s.display_name,
+           np.display_name,
+           CASE WHEN np.username IS NOT NULL AND np.username != '' THEN '@' || np.username END,
+           CASE WHEN s.username IS NOT NULL AND s.username != '' THEN '@' || s.username END
+         ) AS name
+         FROM (SELECT ? AS user_id) AS u
+         LEFT JOIN scores s ON s.chat_id = ? AND s.user_id = u.user_id
+         LEFT JOIN nick_profiles np ON np.user_id = u.user_id`,
+      )
+      .get(userId, chatId) as { name: string | null } | undefined;
+
+    const name = row?.name?.trim();
+    return name && name.length > 0 ? name : "Игрок";
   }
 
   getAllChatIds(): string[] {
@@ -1252,6 +1451,397 @@ export class Repository {
       )
       .run(chatId, fallback.id, Date.now());
     return fallback.text;
+  }
+
+  ensureWallet(userId: string): WalletRow {
+    const existing = this.db
+      .prepare(
+        `SELECT user_id, gold, battle_mmr, created_at FROM player_wallets WHERE user_id = ?`,
+      )
+      .get(userId) as WalletRow | undefined;
+    if (existing) return existing;
+
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO player_wallets (user_id, gold, battle_mmr, created_at) VALUES (?, 100, 1000, ?)`,
+      )
+      .run(userId, now);
+    return { user_id: userId, gold: 100, battle_mmr: 1000, created_at: now };
+  }
+
+  adjustGold(
+    userId: string,
+    amount: number,
+    reason: string,
+    chatId?: string,
+    refId?: string,
+  ): number {
+    this.ensureWallet(userId);
+    this.db
+      .prepare(`UPDATE player_wallets SET gold = gold + ? WHERE user_id = ?`)
+      .run(amount, userId);
+    this.db
+      .prepare(
+        `INSERT INTO gold_ledger (user_id, chat_id, amount, reason, ref_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(userId, chatId ?? null, amount, reason, refId ?? null, Date.now());
+    return this.ensureWallet(userId).gold;
+  }
+
+  adjustBattleMmr(userId: string, delta: number): number {
+    this.ensureWallet(userId);
+    this.db
+      .prepare(
+        `UPDATE player_wallets SET battle_mmr = MAX(0, battle_mmr + ?) WHERE user_id = ?`,
+      )
+      .run(delta, userId);
+    return this.ensureWallet(userId).battle_mmr;
+  }
+
+  getBattleMmrLeaderboard(limit = 10): BattleMmrRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT user_id, battle_mmr FROM player_wallets ORDER BY battle_mmr DESC LIMIT ?`,
+      )
+      .all(limit) as { user_id: string; battle_mmr: number }[];
+
+    return rows.map((r) => {
+      const score = this.db
+        .prepare(
+          `SELECT display_name FROM scores WHERE user_id = ? ORDER BY points DESC LIMIT 1`,
+        )
+        .get(r.user_id) as { display_name: string } | undefined;
+      return {
+        user_id: r.user_id,
+        display_name: score?.display_name ?? r.user_id,
+        battle_mmr: r.battle_mmr,
+      };
+    });
+  }
+
+  incrementChatUnlock(
+    chatId: string,
+    entityType: "hero" | "item",
+    entityId: number,
+    requiredGuesses: number,
+  ): ChatUnlockRow {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO chat_unlocks (chat_id, entity_type, entity_id, guess_count, unlocked_at)
+         VALUES (?, ?, ?, 1, NULL)
+         ON CONFLICT(chat_id, entity_type, entity_id) DO UPDATE SET
+           guess_count = guess_count + 1,
+           unlocked_at = CASE
+             WHEN unlocked_at IS NOT NULL THEN unlocked_at
+             WHEN guess_count + 1 >= ? THEN ?
+             ELSE NULL
+           END`,
+      )
+      .run(chatId, entityType, entityId, requiredGuesses, now);
+    return this.getChatUnlock(chatId, entityType, entityId)!;
+  }
+
+  getChatUnlock(
+    chatId: string,
+    entityType: string,
+    entityId: number,
+  ): ChatUnlockRow | undefined {
+    return this.db
+      .prepare(
+        `SELECT chat_id, entity_type, entity_id, guess_count, unlocked_at
+         FROM chat_unlocks WHERE chat_id = ? AND entity_type = ? AND entity_id = ?`,
+      )
+      .get(chatId, entityType, entityId) as ChatUnlockRow | undefined;
+  }
+
+  isChatUnlocked(
+    chatId: string,
+    entityType: string,
+    entityId: number,
+    requiredGuesses: number,
+  ): boolean {
+    if (requiredGuesses <= 0) return true;
+    const row = this.getChatUnlock(chatId, entityType, entityId);
+    return (row?.guess_count ?? 0) >= requiredGuesses || row?.unlocked_at != null;
+  }
+
+  getPlayerHero(
+    chatId: string,
+    userId: string,
+    heroId: number,
+  ): PlayerHeroRow | undefined {
+    return this.db
+      .prepare(
+        `SELECT chat_id, user_id, hero_id, level, xp, equipped_items
+         FROM player_heroes WHERE chat_id = ? AND user_id = ? AND hero_id = ?`,
+      )
+      .get(chatId, userId, heroId) as PlayerHeroRow | undefined;
+  }
+
+  getPlayerHeroes(chatId: string, userId: string): PlayerHeroRow[] {
+    return this.db
+      .prepare(
+        `SELECT chat_id, user_id, hero_id, level, xp, equipped_items
+         FROM player_heroes WHERE chat_id = ? AND user_id = ? ORDER BY hero_id`,
+      )
+      .all(chatId, userId) as PlayerHeroRow[];
+  }
+
+  /** Игроки чата, у которых есть хотя бы один герой в коллекции. */
+  getChatHeroOwners(
+    chatId: string,
+    excludeUserId: string,
+  ): { user_id: string; display_name: string }[] {
+    return this.db
+      .prepare(
+        `SELECT DISTINCT ph.user_id,
+                COALESCE(np.current_nickname, s.display_name, ph.user_id) AS display_name
+         FROM player_heroes ph
+         LEFT JOIN scores s ON s.chat_id = ph.chat_id AND s.user_id = ph.user_id
+         LEFT JOIN nick_profiles np ON np.user_id = ph.user_id
+         WHERE ph.chat_id = ? AND ph.user_id != ?
+         ORDER BY display_name COLLATE NOCASE`,
+      )
+      .all(chatId, excludeUserId) as { user_id: string; display_name: string }[];
+  }
+
+  addPlayerHero(
+    chatId: string,
+    userId: string,
+    heroId: number,
+  ): PlayerHeroRow {
+    this.db
+      .prepare(
+        `INSERT INTO player_heroes (chat_id, user_id, hero_id, level, xp, equipped_items)
+         VALUES (?, ?, ?, 1, 0, '[]')
+         ON CONFLICT(chat_id, user_id, hero_id) DO NOTHING`,
+      )
+      .run(chatId, userId, heroId);
+    return this.getPlayerHero(chatId, userId, heroId)!;
+  }
+
+  addHeroXp(
+    chatId: string,
+    userId: string,
+    heroId: number,
+    xpGain: number,
+  ): PlayerHeroRow {
+    const row = this.getPlayerHero(chatId, userId, heroId);
+    if (!row) throw new Error("hero not owned");
+    const newXp = row.xp + xpGain;
+    const newLevel = Math.min(15, Math.floor(newXp / 50) + 1);
+    this.db
+      .prepare(
+        `UPDATE player_heroes SET xp = ?, level = ? WHERE chat_id = ? AND user_id = ? AND hero_id = ?`,
+      )
+      .run(newXp, newLevel, chatId, userId, heroId);
+    return this.getPlayerHero(chatId, userId, heroId)!;
+  }
+
+  setEquippedItems(
+    chatId: string,
+    userId: string,
+    heroId: number,
+    items: number[],
+  ): void {
+    this.db
+      .prepare(
+        `UPDATE player_heroes SET equipped_items = ? WHERE chat_id = ? AND user_id = ? AND hero_id = ?`,
+      )
+      .run(JSON.stringify(items), chatId, userId, heroId);
+  }
+
+  deletePlayerHero(
+    chatId: string,
+    userId: string,
+    heroId: number,
+  ): boolean {
+    const result = this.db
+      .prepare(
+        `DELETE FROM player_heroes WHERE chat_id = ? AND user_id = ? AND hero_id = ?`,
+      )
+      .run(chatId, userId, heroId);
+    return result.changes > 0;
+  }
+
+  private migratePlayerItemsTable(): void {
+    const cols = this.db
+      .prepare(`PRAGMA table_info(player_items)`)
+      .all() as { name: string }[];
+    if (cols.length === 0) return;
+    const names = new Set(cols.map((c) => c.name));
+    if (names.has("slot") && names.has("uses_remaining")) return;
+
+    this.db.exec(`
+      DROP TABLE IF EXISTS player_items;
+      CREATE TABLE player_items (
+        chat_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        slot INTEGER NOT NULL CHECK(slot >= 0 AND slot < 3),
+        item_id INTEGER NOT NULL,
+        uses_remaining INTEGER NOT NULL,
+        PRIMARY KEY (chat_id, user_id, slot)
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_player_items_unique_item
+        ON player_items(chat_id, user_id, item_id);
+    `);
+  }
+
+  getPlayerItemSlots(
+    chatId: string,
+    userId: string,
+  ): { slot: number; item_id: number; uses_remaining: number }[] {
+    return this.db
+      .prepare(
+        `SELECT slot, item_id, uses_remaining FROM player_items
+         WHERE chat_id = ? AND user_id = ?
+         ORDER BY slot`,
+      )
+      .all(chatId, userId) as {
+      slot: number;
+      item_id: number;
+      uses_remaining: number;
+    }[];
+  }
+
+  countFilledItemSlots(chatId: string, userId: string): number {
+    const row = this.db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM player_items WHERE chat_id = ? AND user_id = ?`,
+      )
+      .get(chatId, userId) as { c: number };
+    return row.c;
+  }
+
+  findFirstEmptyItemSlot(chatId: string, userId: string): number | null {
+    const used = new Set(
+      this.getPlayerItemSlots(chatId, userId).map((r) => r.slot),
+    );
+    for (let slot = 0; slot < 3; slot++) {
+      if (!used.has(slot)) return slot;
+    }
+    return null;
+  }
+
+  ownsItem(chatId: string, userId: string, itemId: number): boolean {
+    const row = this.db
+      .prepare(
+        `SELECT 1 FROM player_items
+         WHERE chat_id = ? AND user_id = ? AND item_id = ?`,
+      )
+      .get(chatId, userId, itemId);
+    return !!row;
+  }
+
+  setPlayerItemSlot(
+    chatId: string,
+    userId: string,
+    slot: number,
+    itemId: number,
+    usesRemaining: number,
+  ): void {
+    this.db
+      .prepare(
+        `INSERT INTO player_items (chat_id, user_id, slot, item_id, uses_remaining)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(chatId, userId, slot, itemId, usesRemaining);
+  }
+
+  removePlayerItemSlot(
+    chatId: string,
+    userId: string,
+    itemId: number,
+  ): void {
+    this.db
+      .prepare(
+        `DELETE FROM player_items
+         WHERE chat_id = ? AND user_id = ? AND item_id = ?`,
+      )
+      .run(chatId, userId, itemId);
+  }
+
+  updateItemUses(
+    chatId: string,
+    userId: string,
+    itemId: number,
+    usesRemaining: number,
+  ): void {
+    if (usesRemaining <= 0) {
+      this.removePlayerItemSlot(chatId, userId, itemId);
+      return;
+    }
+    this.db
+      .prepare(
+        `UPDATE player_items SET uses_remaining = ?
+         WHERE chat_id = ? AND user_id = ? AND item_id = ?`,
+      )
+      .run(usesRemaining, chatId, userId, itemId);
+  }
+
+  createBattle(
+    chatId: string,
+    challengerId: string,
+    defenderId: string,
+    state: string,
+    stateJson: string,
+  ): BattleRow {
+    const now = Date.now();
+    const result = this.db
+      .prepare(
+        `INSERT INTO battles (chat_id, challenger_id, defender_id, state, state_json, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(chatId, challengerId, defenderId, state, stateJson, now);
+    return this.getBattle(Number(result.lastInsertRowid))!;
+  }
+
+  getBattle(id: number): BattleRow | undefined {
+    return this.db
+      .prepare(`SELECT * FROM battles WHERE id = ?`)
+      .get(id) as BattleRow | undefined;
+  }
+
+  getBattleByChat(chatId: string): BattleRow | undefined {
+    return this.db
+      .prepare(`SELECT * FROM battles WHERE chat_id = ?`)
+      .get(chatId) as BattleRow | undefined;
+  }
+
+  updateBattle(
+    id: number,
+    patch: Partial<
+      Pick<
+        BattleRow,
+        | "message_id"
+        | "message_chat_id"
+        | "state"
+        | "turn"
+        | "state_json"
+        | "winner_id"
+      >
+    >,
+  ): void {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    for (const [key, val] of Object.entries(patch)) {
+      if (val !== undefined) {
+        fields.push(`${key} = ?`);
+        values.push(val);
+      }
+    }
+    if (fields.length === 0) return;
+    values.push(id);
+    this.db
+      .prepare(`UPDATE battles SET ${fields.join(", ")} WHERE id = ?`)
+      .run(...values);
+  }
+
+  deleteBattle(chatId: string): void {
+    this.db.prepare(`DELETE FROM battles WHERE chat_id = ?`).run(chatId);
   }
 
   close(): void {

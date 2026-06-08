@@ -152,3 +152,66 @@ CREATE TABLE IF NOT EXISTS chat_riddle_history (
   hero_ids TEXT NOT NULL DEFAULT '[]',
   updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS player_wallets (
+  user_id TEXT PRIMARY KEY,
+  gold INTEGER NOT NULL DEFAULT 100,
+  battle_mmr INTEGER NOT NULL DEFAULT 1000,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gold_ledger (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  chat_id TEXT,
+  amount INTEGER NOT NULL,
+  reason TEXT NOT NULL,
+  ref_id TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_gold_ledger_user ON gold_ledger(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS chat_unlocks (
+  chat_id TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id INTEGER NOT NULL,
+  guess_count INTEGER NOT NULL DEFAULT 0,
+  unlocked_at INTEGER,
+  PRIMARY KEY (chat_id, entity_type, entity_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_heroes (
+  chat_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  hero_id INTEGER NOT NULL,
+  level INTEGER NOT NULL DEFAULT 1,
+  xp INTEGER NOT NULL DEFAULT 0,
+  equipped_items TEXT NOT NULL DEFAULT '[]',
+  PRIMARY KEY (chat_id, user_id, hero_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_items (
+  chat_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  slot INTEGER NOT NULL CHECK(slot >= 0 AND slot < 3),
+  item_id INTEGER NOT NULL,
+  uses_remaining INTEGER NOT NULL,
+  PRIMARY KEY (chat_id, user_id, slot)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_player_items_unique_item
+  ON player_items(chat_id, user_id, item_id);
+
+CREATE TABLE IF NOT EXISTS battles (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chat_id TEXT NOT NULL UNIQUE,
+  message_id INTEGER,
+  message_chat_id TEXT,
+  challenger_id TEXT NOT NULL,
+  defender_id TEXT NOT NULL,
+  state TEXT NOT NULL,
+  turn INTEGER NOT NULL DEFAULT 1,
+  state_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  winner_id TEXT
+);
